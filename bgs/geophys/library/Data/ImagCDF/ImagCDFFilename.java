@@ -5,7 +5,6 @@
  */
 package bgs.geophys.library.Data.ImagCDF;
 
-import static bgs.geophys.library.Misc.DateUtils.gmtTimeZone;
 import gsfc.nssdc.cdf.CDFException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
