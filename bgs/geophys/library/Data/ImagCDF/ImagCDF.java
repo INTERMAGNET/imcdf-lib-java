@@ -8,7 +8,6 @@ import gsfc.nssdc.cdf.CDFException;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -100,6 +99,7 @@ implements IMCDFWriteProgressListener
         ImagCDFLowLevel cdf;
         IMCDFVariableType field_var_type, temperature_var_type;
         List<String> links, pids;
+        CDFException stored_close_exception;
         
         write_progress_listeners = new ArrayList<> ();
         
@@ -108,94 +108,114 @@ implements IMCDFWriteProgressListener
         if (string != null) throw new CDFException (string);
         
         // open the CDF file
-        cdf = new ImagCDFLowLevel (file, ImagCDFLowLevel.CDFOpenType.CDFOpen, ImagCDFLowLevel.CDFCompressType.None);
-
-        // get global metadata
-        links = new ArrayList<String> ();
-        pids = new ArrayList<String> ();
-        format_description =                                  cdf.getGlobalAttributeString("FormatDescription", 0, true);
-        format_version =                                      cdf.getGlobalAttributeString("FormatVersion",     0, true);
-        title =                                               cdf.getGlobalAttributeString("Title",             0, true);
-        iaga_code =                                           cdf.getGlobalAttributeString("IagaCode",          0, true);
-        elements_recorded =                                   cdf.getGlobalAttributeString("ElementsRecorded",  0, true);
-        pub_level =                new IMCDFPublicationLevel (cdf.getGlobalAttributeString("PublicationLevel",  0, true));
-        pub_date =                                            cdf.getGlobalAttributeDate  ("PublicationDate",   0, true);
-        observatory_name =                                    cdf.getGlobalAttributeString("ObservatoryName",   0, true);
-        latitude =                                            cdf.getGlobalAttributeDouble("Latitude",          0, true);
-        longitude =                                           cdf.getGlobalAttributeDouble("Longitude",         0, true);
-        elevation =                                           cdf.getGlobalAttributeDouble("Elevation",         0, true);
-        institution =                                         cdf.getGlobalAttributeString("Institution",       0, true);
-        vector_sens_orient =                                  cdf.getGlobalAttributeString("VectorSensOrient",  0, false);
-        standard_level =              new IMCDFStandardLevel (cdf.getGlobalAttributeString("StandardLevel",     0, true));
-        standard_name_string =                                cdf.getGlobalAttributeString("StandardName",      0, false);
-        standard_version =                                    cdf.getGlobalAttributeString("StandardVersion",   0, false);
-        partial_stand_desc =                                  cdf.getGlobalAttributeString("PartialStandDesc",  0, false);
-        source =                                              cdf.getGlobalAttributeString("Source",            0, true);
-        terms_of_use =                                        cdf.getGlobalAttributeString("TermsOfUse",        0, false);
-        unique_identifier =                                   cdf.getGlobalAttributeString("UniqueIdentifier",  0, false);
-        if (standard_name_string == null) standard_name = null;
-        else standard_name = new IMCDFStandardName (standard_name_string);
-        for (count=0, string=""; string != null; count ++)
-        {
-            string =                                          cdf.getGlobalAttributeString("ParentIdentifiers", count, false);
-            if (string != null) pids.add (string);
-        }
-        for (count=0, string=""; string != null; count ++)
-        {
-            string =                                          cdf.getGlobalAttributeString("ReferenceLinks", count, false);
-            if (string != null) links.add (string);
-        }
-
-        // sort out the array of reference links
-        reference_links = new URL [links.size()];
-        count = 0;
+        cdf = null;
+        stored_close_exception = null;
         try
         {
-            for (String s : links)
+            cdf = new ImagCDFLowLevel (file, ImagCDFLowLevel.CDFOpenType.CDFOpen, ImagCDFLowLevel.CDFCompressType.None);
+
+            // get global metadata
+            links = new ArrayList<String> ();
+            pids = new ArrayList<String> ();
+            format_description =                                  cdf.getGlobalAttributeString("FormatDescription", 0, true);
+            format_version =                                      cdf.getGlobalAttributeString("FormatVersion",     0, true);
+            title =                                               cdf.getGlobalAttributeString("Title",             0, true);
+            iaga_code =                                           cdf.getGlobalAttributeString("IagaCode",          0, true);
+            elements_recorded =                                   cdf.getGlobalAttributeString("ElementsRecorded",  0, true);
+            pub_level =                new IMCDFPublicationLevel (cdf.getGlobalAttributeString("PublicationLevel",  0, true));
+            pub_date =                                            cdf.getGlobalAttributeDate  ("PublicationDate",   0, true);
+            observatory_name =                                    cdf.getGlobalAttributeString("ObservatoryName",   0, true);
+            latitude =                                            cdf.getGlobalAttributeDouble("Latitude",          0, true);
+            longitude =                                           cdf.getGlobalAttributeDouble("Longitude",         0, true);
+            elevation =                                           cdf.getGlobalAttributeDouble("Elevation",         0, true);
+            institution =                                         cdf.getGlobalAttributeString("Institution",       0, true);
+            vector_sens_orient =                                  cdf.getGlobalAttributeString("VectorSensOrient",  0, false);
+            standard_level =              new IMCDFStandardLevel (cdf.getGlobalAttributeString("StandardLevel",     0, true));
+            standard_name_string =                                cdf.getGlobalAttributeString("StandardName",      0, false);
+            standard_version =                                    cdf.getGlobalAttributeString("StandardVersion",   0, false);
+            partial_stand_desc =                                  cdf.getGlobalAttributeString("PartialStandDesc",  0, false);
+            source =                                              cdf.getGlobalAttributeString("Source",            0, true);
+            terms_of_use =                                        cdf.getGlobalAttributeString("TermsOfUse",        0, false);
+            unique_identifier =                                   cdf.getGlobalAttributeString("UniqueIdentifier",  0, false);
+            if (standard_name_string == null) standard_name = null;
+            else standard_name = new IMCDFStandardName (standard_name_string);  
+            for (count=0, string=""; string != null; count ++)
             {
-                reference_links [count ++] = new URL (s);
+                string =                                          cdf.getGlobalAttributeString("ParentIdentifiers", count, false);
+                if (string != null) pids.add (string);
+            }
+            for (count=0, string=""; string != null; count ++)
+            {
+                string =                                          cdf.getGlobalAttributeString("ReferenceLinks", count, false);
+                if (string != null) links.add (string);
+            }
+
+            // sort out the array of reference links
+            reference_links = new URL [links.size()];
+            count = 0;
+            try
+            {   
+                for (String s : links)
+                {
+                    reference_links [count ++] = new URL (s);
+                }
+        }
+            catch (MalformedURLException ex)
+            {
+                throw new CDFException ("Badly formed URL in reference link " + (count +1));
+            }
+
+            // sort out the array of parent identifiers
+            parent_identifiers = new String [links.size()];
+            count = 0;
+            for (String s : pids)
+            {
+                parent_identifiers [count ++] = s;
+            }
+        
+            // get geomagnetic field data - find variable names based on elements recorded
+            field_var_type = new IMCDFVariableType (IMCDFVariableType.VariableTypeCode.GeomagneticFieldElement);
+            n_elements = elements_recorded.length();
+            elements = new ImagCDFVariable [n_elements];
+            need_scalar_ts = false;
+            for (count=0; count<n_elements; count++)
+            {
+                elements [count] = new ImagCDFVariable(cdf, field_var_type, elements_recorded.substring(count, count +1));
+                if (elements[count].isScalarGeomagneticData())
+                    need_scalar_ts = true;
+            }
+            vector_time_stamps = new ImagCDFVariableTS (cdf, IMCDFVariableType.VectorTimeStampsVarName);
+            if (need_scalar_ts)
+                scalar_time_stamps = new ImagCDFVariableTS (cdf, IMCDFVariableType.ScalarTimeStampsVarName);
+        
+            // find the number of temperature variables and get temperature data
+            temperature_var_type = new IMCDFVariableType (IMCDFVariableType.VariableTypeCode.Temperature);
+            n_temperatures = 0;
+            while (cdf.isVariableExist (temperature_var_type.getCDFFileVariableName(Integer.toString (n_temperatures +1)))) n_temperatures ++;
+            temperatures = new ImagCDFVariable [n_temperatures];
+            temperature_time_stamps = new ImagCDFVariableTS [n_temperatures];
+            for (count=0; count<n_temperatures; count++)
+            {
+                temperatures [count] = new ImagCDFVariable(cdf, temperature_var_type, Integer.toString (count +1));
+                temperature_time_stamps [count] = new ImagCDFVariableTS (cdf, IMCDFVariableType.getTemperatureTimeStampsVarName (Integer.toString (count +1)));
             }
         }
-        catch (MalformedURLException ex)
+        finally
         {
-            throw new CDFException ("Badly formed URL in reference link " + (count +1));
-        }
-
-        // sort out the array of parent identifiers
-        parent_identifiers = new String [links.size()];
-        count = 0;
-        for (String s : pids)
-        {
-            parent_identifiers [count ++] = s;
+            try
+            {
+                // close the file
+                if (cdf != null) cdf.close ();
+            }
+            catch (CDFException e)
+            {
+                stored_close_exception = e;
+            }
         }
         
-        // get geomagnetic field data - find variable names based on elements recorded
-        field_var_type = new IMCDFVariableType (IMCDFVariableType.VariableTypeCode.GeomagneticFieldElement);
-        n_elements = elements_recorded.length();
-        elements = new ImagCDFVariable [n_elements];
-        need_scalar_ts = false;
-        for (count=0; count<n_elements; count++)
-        {
-            elements [count] = new ImagCDFVariable(cdf, field_var_type, elements_recorded.substring(count, count +1));
-            if (elements[count].isScalarGeomagneticData())
-                need_scalar_ts = true;
-        }
-        vector_time_stamps = new ImagCDFVariableTS (cdf, IMCDFVariableType.VectorTimeStampsVarName);
-        if (need_scalar_ts)
-            scalar_time_stamps = new ImagCDFVariableTS (cdf, IMCDFVariableType.ScalarTimeStampsVarName);
+        // process any problems when the file was closed
+        if (stored_close_exception != null) throw stored_close_exception;
         
-        // find the number of temperature variables and get temperature data
-        temperature_var_type = new IMCDFVariableType (IMCDFVariableType.VariableTypeCode.Temperature);
-        n_temperatures = 0;
-        while (cdf.isVariableExist (temperature_var_type.getCDFFileVariableName(Integer.toString (n_temperatures +1)))) n_temperatures ++;
-        temperatures = new ImagCDFVariable [n_temperatures];
-        temperature_time_stamps = new ImagCDFVariableTS [n_temperatures];
-        for (count=0; count<n_temperatures; count++)
-        {
-            temperatures [count] = new ImagCDFVariable(cdf, temperature_var_type, Integer.toString (count +1));
-            temperature_time_stamps [count] = new ImagCDFVariableTS (cdf, IMCDFVariableType.getTemperatureTimeStampsVarName (Integer.toString (count +1)));
-        }
-
         checkMetadata ();
     }
 
@@ -382,136 +402,159 @@ implements IMCDFWriteProgressListener
     {
         int count;
         boolean abort;
+        String string;
         ImagCDFLowLevel cdf;
         List <Integer> lengths;
+        CDFException stored_close_exception;
+        
+        // check that the CDF libraries are available
+        string = ImagCDFLowLevel.checkNativeLib("");
+        if (string != null) throw new CDFException (string);
         
         abort = false;
-        cdf = new ImagCDFLowLevel (cdf_file, 
-                                   overwrite_existing ? ImagCDFLowLevel.CDFOpenType.CDFForceCreate : ImagCDFLowLevel.CDFOpenType.CDFCreate,
-                                   compress ? ImagCDFLowLevel.CDFCompressType.GZip6 : ImagCDFLowLevel.CDFCompressType.None);
+        cdf = null;
+        stored_close_exception = null;
+        try
+        {
+            cdf = new ImagCDFLowLevel (cdf_file, 
+                                       overwrite_existing ? ImagCDFLowLevel.CDFOpenType.CDFForceCreate : ImagCDFLowLevel.CDFOpenType.CDFCreate,
+                                       compress ? ImagCDFLowLevel.CDFCompressType.GZip6 : ImagCDFLowLevel.CDFCompressType.None);
 
-        cdf.addGlobalAttribute ("FormatDescription",         0, true,  format_description);
-        cdf.addGlobalAttribute ("FormatVersion",             0, true,  format_version);
-        cdf.addGlobalAttribute ("Title",                     0, true,  title);
-        cdf.addGlobalAttribute ("IagaCode",                  0, true,  iaga_code);
-        cdf.addGlobalAttribute ("ElementsRecorded",          0, true,  elements_recorded);
-        cdf.addGlobalAttribute ("PublicationLevel",          0, true,  pub_level);
-        cdf.addGlobalAttribute ("PublicationDate",           0, true,  pub_date);
-        cdf.addGlobalAttribute ("ObservatoryName",           0, true,  observatory_name);
-        cdf.addGlobalAttribute ("Latitude",                  0, true,  new Double (latitude));
-        cdf.addGlobalAttribute ("Longitude",                 0, true,  new Double (longitude));
-        cdf.addGlobalAttribute ("Elevation",                 0, true,  new Double (elevation));
-        cdf.addGlobalAttribute ("Institution",               0, true,  institution);
-        cdf.addGlobalAttribute ("VectorSensOrient",          0, false, vector_sens_orient);
-        cdf.addGlobalAttribute ("StandardLevel",             0, true,  standard_level);
-        cdf.addGlobalAttribute ("StandardName",              0, false, standard_name);
-        cdf.addGlobalAttribute ("StandardVersion",           0, false, standard_version);
-        cdf.addGlobalAttribute ("PartialStandDesc",          0, false, partial_stand_desc);
-        cdf.addGlobalAttribute ("Source",                    0, true,  source);
-        cdf.addGlobalAttribute ("TermsOfUse",                0, false, terms_of_use);
-        cdf.addGlobalAttribute ("UniqueIdentifier",          0, false, unique_identifier);
-        for (count=0; count<parent_identifiers.length; count++)
-            cdf.addGlobalAttribute ("ParentIdentifiers", count, true, parent_identifiers [count]);
-        for (count=0; count<reference_links.length; count++)
-            cdf.addGlobalAttribute ("References",        count, true, reference_links [count].toString());
+            cdf.addGlobalAttribute ("FormatDescription",         0, true,  format_description);
+            cdf.addGlobalAttribute ("FormatVersion",             0, true,  format_version);
+            cdf.addGlobalAttribute ("Title",                     0, true,  title);
+            cdf.addGlobalAttribute ("IagaCode",                  0, true,  iaga_code);
+            cdf.addGlobalAttribute ("ElementsRecorded",          0, true,  elements_recorded);
+            cdf.addGlobalAttribute ("PublicationLevel",          0, true,  pub_level);
+            cdf.addGlobalAttribute ("PublicationDate",           0, true,  pub_date);
+            cdf.addGlobalAttribute ("ObservatoryName",           0, true,  observatory_name);
+            cdf.addGlobalAttribute ("Latitude",                  0, true,  new Double (latitude));
+            cdf.addGlobalAttribute ("Longitude",                 0, true,  new Double (longitude));
+            cdf.addGlobalAttribute ("Elevation",                 0, true,  new Double (elevation));
+            cdf.addGlobalAttribute ("Institution",               0, true,  institution);
+            cdf.addGlobalAttribute ("VectorSensOrient",          0, false, vector_sens_orient);
+            cdf.addGlobalAttribute ("StandardLevel",             0, true,  standard_level);
+            cdf.addGlobalAttribute ("StandardName",              0, false, standard_name);
+            cdf.addGlobalAttribute ("StandardVersion",           0, false, standard_version);
+            cdf.addGlobalAttribute ("PartialStandDesc",          0, false, partial_stand_desc);
+            cdf.addGlobalAttribute ("Source",                    0, true,  source);
+            cdf.addGlobalAttribute ("TermsOfUse",                0, false, terms_of_use);
+            cdf.addGlobalAttribute ("UniqueIdentifier",          0, false, unique_identifier);
+            for (count=0; count<parent_identifiers.length; count++)
+                cdf.addGlobalAttribute ("ParentIdentifiers", count, true, parent_identifiers [count]);
+            for (count=0; count<reference_links.length; count++)
+                cdf.addGlobalAttribute ("References",        count, true, reference_links [count].toString());
         
-        // check temperature time stamps array is the same length as the temperature array
-        if (temperatures == null) temperatures = new ImagCDFVariable[0];
-        if (temperature_time_stamps == null) temperature_time_stamps = new ImagCDFVariableTS[0];
-        if (temperatures.length != temperature_time_stamps.length)
-            throw new CDFException ("Temperature time stamps array was be the same length as array of temperatures");
+            // check temperature time stamps array is the same length as the temperature array
+            if (temperatures == null) temperatures = new ImagCDFVariable[0];
+            if (temperature_time_stamps == null) temperature_time_stamps = new ImagCDFVariableTS[0];
+            if (temperatures.length != temperature_time_stamps.length)
+                throw new CDFException ("Temperature time stamps array was be the same length as array of temperatures");
         
-        // set up variables for minitoring progress - the array containing the length of each sample must correspond to the
-        // order in which the data is written to file
-        lengths = new ArrayList <> ();
-        for (count=0; count<elements.length; count++)
-            lengths.add (new Integer(elements[count].getDataLength()));
-        lengths.add (new Integer (vector_time_stamps.getNSamples()));
-        if (scalar_time_stamps != null)
-            lengths.add (new Integer (scalar_time_stamps.getNSamples()));
-        for (count=0; count<temperatures.length; count++)
-        {
-            lengths.add (new Integer (temperatures[count].getDataLength()));
-            lengths.add (new Integer (temperature_time_stamps[count].getNSamples()));
-        }
-        n_samples_per_variable = new int [lengths.size()];
-        n_data_points_total = 0;
-        for (count=0; count<n_samples_per_variable.length; count++)
-        {
-            n_samples_per_variable [count] = lengths.get(count).intValue();
-            n_data_points_total += lengths.get(count).intValue();
-        }
-        variable_being_written_index = -1;
-        if (! callWriteProgressListeners (-1)) 
-        {
-            abort = true;
-        }
-        
-        // write the individual variables to the file
-        for (count=0; (count<elements.length) && (! abort); count++)
-        {
-            variable_being_written_index ++;
-            elements[count].addWriteProgressListener(this);
-            if (! elements[count].write (cdf, elements[count].getElementRecorded())) 
+            // set up variables for minitoring progress - the array containing the length of each sample must correspond to the
+            // order in which the data is written to file
+            lengths = new ArrayList <> ();
+            for (count=0; count<elements.length; count++)
+                lengths.add (new Integer(elements[count].getDataLength()));
+            lengths.add (new Integer (vector_time_stamps.getNSamples()));
+            if (scalar_time_stamps != null)
+                lengths.add (new Integer (scalar_time_stamps.getNSamples()));
+            for (count=0; count<temperatures.length; count++)
+            {
+                lengths.add (new Integer (temperatures[count].getDataLength()));
+                lengths.add (new Integer (temperature_time_stamps[count].getNSamples()));
+            }
+            n_samples_per_variable = new int [lengths.size()];
+            n_data_points_total = 0;
+            for (count=0; count<n_samples_per_variable.length; count++)
+            {
+                n_samples_per_variable [count] = lengths.get(count).intValue();
+                n_data_points_total += lengths.get(count).intValue();
+            }
+            variable_being_written_index = -1;
+            if (! callWriteProgressListeners (-1)) 
             {
                 abort = true;
             }
-            elements[count].removeWriteProgressListener(this);
-        }
-        variable_being_written_index ++;
-        if (! abort)
-        {
-            vector_time_stamps.addWriteProgressListener(this);
-            if (! vector_time_stamps.write (cdf)) 
+        
+            // write the individual variables to the file
+            for (count=0; (count<elements.length) && (! abort); count++)
             {
-                abort = true;
-            }
-            vector_time_stamps.removeWriteProgressListener(this);
-        }
-        if (scalar_time_stamps != null)
-        {
-            variable_being_written_index ++;
-            if (! abort)
-            {
-                scalar_time_stamps.addWriteProgressListener(this);
-                if (! scalar_time_stamps.write (cdf)) 
+                variable_being_written_index ++;
+                elements[count].addWriteProgressListener(this);
+                if (! elements[count].write (cdf, elements[count].getElementRecorded())) 
                 {
                     abort = true;
                 }
-                scalar_time_stamps.removeWriteProgressListener(this);
+                elements[count].removeWriteProgressListener(this);
             }
-        }
+            variable_being_written_index ++;
+            if (! abort)
+            {
+                vector_time_stamps.addWriteProgressListener(this);
+                if (! vector_time_stamps.write (cdf)) 
+                {
+                    abort = true;
+                }
+                vector_time_stamps.removeWriteProgressListener(this);
+            }
+            if (scalar_time_stamps != null)
+            {
+                variable_being_written_index ++;
+                if (! abort)
+                {
+                    scalar_time_stamps.addWriteProgressListener(this);
+                    if (! scalar_time_stamps.write (cdf)) 
+                    {
+                        abort = true;
+                    }
+                    scalar_time_stamps.removeWriteProgressListener(this);
+                }
+            }
          
-        for (count=0; (count<temperatures.length) && (! abort); count++)
-        {
-            variable_being_written_index ++;
-            temperatures[count].addWriteProgressListener(this);
-            if (! temperatures[count].write(cdf, Integer.toString (count))) abort = true;
-            temperatures[count].removeWriteProgressListener(this);
-            variable_being_written_index ++;
-            if (! abort)
+            for (count=0; (count<temperatures.length) && (! abort); count++)
             {
-                temperature_time_stamps[count].addWriteProgressListener(this);
-                if (! temperature_time_stamps[count].write (cdf)) 
+                variable_being_written_index ++;
+                temperatures[count].addWriteProgressListener(this);
+                if (! temperatures[count].write(cdf, Integer.toString (count))) abort = true;
+                temperatures[count].removeWriteProgressListener(this);
+                variable_being_written_index ++;
+                if (! abort)
                 {
-                    abort = true;
+                    temperature_time_stamps[count].addWriteProgressListener(this);
+                    if (! temperature_time_stamps[count].write (cdf)) 
+                    {
+                        abort = true;
+                    }
+                    temperature_time_stamps[count].removeWriteProgressListener(this);
                 }
-                temperature_time_stamps[count].removeWriteProgressListener(this);
+            }
+
+            variable_being_written_index ++;
+            if (! callWriteProgressListeners (101)) abort = true;
+        }
+        finally
+        {
+            try
+            {
+                // finalise the file
+                if (cdf != null) cdf.close ();
+
+                // remove the file if the operation was aborted
+                if (abort)
+                {
+                    cdf_file.delete();
+                    stored_close_exception = new CDFException ("User aborted write operation, " + cdf_file.getName() + " deleted");
+                }
+            }
+            catch (CDFException e)
+            {
+                stored_close_exception = e;
             }
         }
-
-        variable_being_written_index ++;
-        if (! callWriteProgressListeners (101)) abort = true;
         
-        // finalise the file
-        cdf.close ();
-        
-        // remove the file if the operation was aborted
-        if (abort)
-        {
-            cdf_file.delete();
-            throw new CDFException ("User aborted write operation, " + cdf_file.getName() + " deleted");
-        }
+        // process any problems when the file was closed
+        if (stored_close_exception != null) throw stored_close_exception;
     }
     
     public String getFormatDescription() { return format_description; }
@@ -608,27 +651,18 @@ implements IMCDFWriteProgressListener
                                        FilenameSamplePeriod sample_period, Date start_date,
                                        IMCDFPublicationLevel pub_level)
     {
-        String filename;
-        SimpleDateFormat date_format;
-
-        // set up the parts of the filename that depend on the sample period
+        ImagCDFFilename.Interval cdf_interval;
         switch (sample_period)
         {
-            case ANNUAL:  date_format = new SimpleDateFormat ("yyyy"); break;
-            case MONTHLY: date_format = new SimpleDateFormat ("yyyyMM"); break;
-            case DAILY:   date_format = new SimpleDateFormat ("yyyyMMdd"); break;
-            case HOURLY:  date_format = new SimpleDateFormat ("yyyyMMdd_HH"); break;
-            case MINUTE:  date_format = new SimpleDateFormat ("yyyyMMdd_HHmm"); break;
-            default:      date_format = new SimpleDateFormat ("yyyyMMdd_HHmmss"); break;
+            case ANNUAL: cdf_interval = ImagCDFFilename.Interval.ANNUAL; break;
+            case MONTHLY: cdf_interval = ImagCDFFilename.Interval.MONTHLY; break;
+            case DAILY: cdf_interval = ImagCDFFilename.Interval.DAILY; break;
+            case HOURLY: cdf_interval = ImagCDFFilename.Interval.HOURLY; break;
+            case MINUTE: cdf_interval = ImagCDFFilename.Interval.MINUTE; break;
+            case SECOND: cdf_interval = ImagCDFFilename.Interval.SECOND; break;
+            default: cdf_interval = ImagCDFFilename.Interval.UNKNOWN; break;
         }
-        date_format.setTimeZone(TimeZone.getTimeZone("gmt"));
-
-        filename = station_code + "_" +
-                   date_format.format (start_date) + "_" + 
-                   pub_level.toString () + ".cdf";
-        filename = filename.toLowerCase();
-        if (prefix == null) return filename;
-        return prefix + filename;
+        return new ImagCDFFilename (station_code, start_date, pub_level, cdf_interval, ImagCDFFilename.Case.LOWER).getFilename ();
     }
 
     public static String getINTERMAGNETTermsOfUse ()

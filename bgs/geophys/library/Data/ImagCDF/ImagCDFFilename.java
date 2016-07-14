@@ -134,32 +134,32 @@ public class ImagCDFFilename
         try {
             switch (filename.length())
             {
-                case 13:
+                case 18:
                     date = yyyy.parse (filename.substring(4, 8));
                     interval = Interval.ANNUAL;
                     publicationLevel = new IMCDFPublicationLevel (filename.substring (9, 10));
                     break;
-                case 15:
+                case 20:
                     date = yyyyMM.parse (filename.substring(4, 10));
                     interval = Interval.MONTHLY;
                     publicationLevel = new IMCDFPublicationLevel (filename.substring (11, 12));
                     break;
-                case 17:
+                case 22:
                     date = yyyyMMdd.parse (filename.substring(4, 12));
                     interval = Interval.DAILY;
                     publicationLevel = new IMCDFPublicationLevel (filename.substring (13, 14));
                     break;
-                case 20:
+                case 26:
                     date = yyyyMMdd_HH.parse (filename.substring(4, 15));
                     interval = Interval.HOURLY;
                     publicationLevel = new IMCDFPublicationLevel (filename.substring (16, 17));
                     break;
-                case 22:
+                case 28:
                     date = yyyyMMdd_HHmm.parse (filename.substring(4, 17));
                     interval = Interval.MINUTE;
                     publicationLevel = new IMCDFPublicationLevel (filename.substring (18, 19));
                     break;
-                case 24:
+                case 30:
                     date = yyyyMMdd_HHmmss.parse (filename.substring(4, 19));
                     interval = Interval.SECOND;
                     publicationLevel = new IMCDFPublicationLevel (filename.substring (20, 21));
@@ -183,24 +183,26 @@ public class ImagCDFFilename
     }
     
     
-    /** Creates a valid IAGA2002 filename based on the properties of the class */
+    /** Creates a valid ImagCDF filename based on the properties of the class */
     private String generateFilename(Case characterCase) {
         SimpleDateFormat dateFormat;
-        String filename;
+        String cadence, filename;
         
         switch(this.getInterval()){
-            case ANNUAL:  dateFormat = yyyy; break;
-            case MONTHLY: dateFormat = yyyyMM; break;
-            case DAILY:   dateFormat = yyyyMMdd; break;
-            case HOURLY:  dateFormat = yyyyMMdd_HH; break;
-            case MINUTE:  dateFormat = yyyyMMdd_HHmm; break;
-            case SECOND:  dateFormat = yyyyMMdd_HHmmss; break;
-            default:      dateFormat = yyyyMMdd_HHmmss; break;
+            case ANNUAL:  dateFormat = yyyy; cadence = "P1Y"; break;
+            case MONTHLY: dateFormat = yyyyMM; cadence = "P1M"; break;
+            case DAILY:   dateFormat = yyyyMMdd; cadence = "P1D"; break;
+            case HOURLY:  dateFormat = yyyyMMdd_HH; cadence = "PT1H"; break;
+            case MINUTE:  dateFormat = yyyyMMdd_HHmm; cadence = "PT1M"; break;
+            case SECOND:  dateFormat = yyyyMMdd_HHmmss; cadence = "PT1S"; break;
+            default:      dateFormat = yyyyMMdd_HHmmss; cadence = "UNKN"; break;
         }
         
         filename = this.getObservatoryCode()
                     + "_"
                     + dateFormat.format(this.getDate())
+                    + "_"
+                    + cadence
                     + "_"
                     + publicationLevel.toString()
                     + ".cdf";

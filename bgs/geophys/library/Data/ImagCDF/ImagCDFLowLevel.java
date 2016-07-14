@@ -391,7 +391,8 @@ public class ImagCDFLowLevel
         
         entry = getAttributeEntry(name, entry_no, mandatory);
         if (entry == null) return null;
-        return (String) entry.getData();
+        if (entry.getData () instanceof String) return (String) entry.getData();
+        throw new CDFException ("Incorrect global attribute data type (should be String)");
     }
 
     /** get the contents of a global attribute
@@ -408,7 +409,8 @@ public class ImagCDFLowLevel
         
         entry = getAttributeEntry(name, entry_no, mandatory);
         if (entry == null) return null;
-        return ((Double) entry.getData());
+        if (entry.getData () instanceof Double) return (Double) entry.getData();
+        throw new CDFException ("Incorrect global attribute data type (should be Double)");
     }
     
     /** get the contents of a global attribute
@@ -425,7 +427,8 @@ public class ImagCDFLowLevel
         
         entry = getAttributeEntry(name, entry_no, mandatory);
         if (entry == null) return null;
-        return TT2000ToDate ((Long) entry.getData());
+        if (entry.getData() instanceof Long) return TT2000ToDate ((Long) entry.getData());
+        throw new CDFException ("Incorrect global attribute data type (should be Long/TT2000)");
     }
     
     /** get the contents of a variable attribute
@@ -436,7 +439,9 @@ public class ImagCDFLowLevel
     public String getVariableAttributeString (String name, Variable var)
     throws CDFException
     {
-        return (String) cdf.getAttribute (name).getEntry(var).getData();
+        Object data = cdf.getAttribute (name).getEntry(var).getData();
+        if (data instanceof String) return (String) data;
+        throw new CDFException ("Incorrect variable attribute data type (should be String)");
     }
     
     /** get the contents of a variable attribute
@@ -447,7 +452,9 @@ public class ImagCDFLowLevel
     public double getVariableAttributeDouble (String name, Variable var)
     throws CDFException
     {
-        return ((Double) cdf.getAttribute (name).getEntry(var).getData()).doubleValue();
+        Object data = cdf.getAttribute (name).getEntry(var).getData();
+        if (data instanceof Double) return ((Double) data).doubleValue() ;
+        throw new CDFException ("Incorrect variable attribute data type (should be Double)");
     }
     
     /** get data from a variable
