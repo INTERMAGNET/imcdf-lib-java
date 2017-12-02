@@ -80,11 +80,12 @@ public class ImagCDFFilename
     
     /** Creates a new instance of Iaga2002Filename */
     public ImagCDFFilename (ImagCDF imag_cdf, Case characterCase) throws ParseException {
-        String observatoryCode = imag_cdf.getIagaCode();
-        Date date = imag_cdf.getVectorTimeStamps().getStartDate();
-        IMCDFPublicationLevel publicationLevel = imag_cdf.getPublicationLevel();
         try { 
-            double sample_period = imag_cdf.getVectorTimeStamps().getSamplePeriod(); 
+            String observatoryCode = imag_cdf.getIagaCode();
+            ImagCDFVariableTS ts = imag_cdf.findVectorTimeStamps();
+            Date date = ts.getStartDate();
+            IMCDFPublicationLevel publicationLevel = imag_cdf.getPublicationLevel();
+            double sample_period = ts.getSamplePeriod(); 
             if (sample_period == 1.0) interval = Interval.SECOND;
             else if (sample_period == 60.0) interval = Interval.MINUTE;
             else if (sample_period == 3600.0) interval = Interval.HOURLY;

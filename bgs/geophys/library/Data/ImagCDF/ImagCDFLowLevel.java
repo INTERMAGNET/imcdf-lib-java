@@ -8,7 +8,6 @@ import gsfc.nssdc.cdf.*;
 import gsfc.nssdc.cdf.util.CDFTT2000;
 import java.io.File;
 import java.text.DateFormatSymbols;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -195,7 +194,7 @@ public class ImagCDFLowLevel
             if (mandatory) throw new CDFException ("Missing value for mandatory attribute " + name);
         }
         else
-            Entry.create (Attribute.create (cdf, name, CDF.GLOBAL_SCOPE), 0, CDF.CDF_CHAR, value);        
+            Entry.create (safeCreateGlobalAttribute(name), entry_no, CDF.CDF_CHAR, value);        
     }
     
     /** add a global attribute to the CDF file and make an entry in it
@@ -212,7 +211,7 @@ public class ImagCDFLowLevel
             if (mandatory) throw new CDFException ("Missing value for mandatory attribute " + name);
         }
         else
-            Entry.create (Attribute.create (cdf, name, CDF.GLOBAL_SCOPE), 0, CDF.CDF_CHAR, value.toString());
+            Entry.create (safeCreateGlobalAttribute(name), entry_no, CDF.CDF_CHAR, value.toString());
     }
     
     /** add a global attribute to the CDF file and make an entry in it
@@ -229,7 +228,7 @@ public class ImagCDFLowLevel
             if (mandatory) throw new CDFException ("Missing value for mandatory attribute " + name);
         }
         else
-            Entry.create (Attribute.create (cdf, name, CDF.GLOBAL_SCOPE), 0, CDF.CDF_DOUBLE, new Double (value));
+            Entry.create (safeCreateGlobalAttribute(name), entry_no, CDF.CDF_DOUBLE, new Double (value));
     }
 
     /** add a global attribute to the CDF file and make an entry in it
@@ -246,7 +245,7 @@ public class ImagCDFLowLevel
             if (mandatory) throw new CDFException ("Missing value for mandatory attribute " + name);
         }
         else
-            Entry.create (Attribute.create (cdf, name, CDF.GLOBAL_SCOPE), 0, CDF.CDF_TIME_TT2000, new Long (ImagCDFLowLevel.DateToTT2000(value)));
+            Entry.create (safeCreateGlobalAttribute(name), entry_no, CDF.CDF_TIME_TT2000, new Long (ImagCDFLowLevel.DateToTT2000(value)));
     }
     
     /** add a variable attribute to the CDF file and make an entry in it
@@ -672,6 +671,21 @@ public class ImagCDFLowLevel
         catch (CDFException e)
         {
             attr = Attribute.create (cdf, name, CDF.VARIABLE_SCOPE);
+        }
+        return attr;
+    }
+    
+    private Attribute safeCreateGlobalAttribute (String name)
+    throws CDFException
+    {
+        Attribute attr;
+        try
+        {
+            attr = cdf.getAttribute(name);
+        }
+        catch (CDFException e)
+        {
+            attr = Attribute.create (cdf, name, CDF.GLOBAL_SCOPE);
         }
         return attr;
     }

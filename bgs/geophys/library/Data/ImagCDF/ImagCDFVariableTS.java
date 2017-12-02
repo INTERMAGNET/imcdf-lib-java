@@ -6,13 +6,10 @@ package bgs.geophys.library.Data.ImagCDF;
 
 import gsfc.nssdc.cdf.CDFException;
 import gsfc.nssdc.cdf.Variable;
-import gsfc.nssdc.cdf.util.CDFTT2000;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.Iterator;
 import java.util.List;
-import java.util.TimeZone;
 
 /**
  * A class that holds the time stamps for the individual data points in an ImagCDFVariable

@@ -6,7 +6,6 @@ package bgs.geophys.library.Data.ImagCDF;
 
 import gsfc.nssdc.cdf.CDFException;
 import gsfc.nssdc.cdf.Variable;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -35,6 +34,7 @@ public class ImagCDFVariable
     private String units;
     private double fill_val;
     private String elem_rec;
+    private String depend_0;
     
     // private member data - the data array
     private double data [];
@@ -62,6 +62,7 @@ public class ImagCDFVariable
         valid_max =                             cdf.getVariableAttributeDouble("VALIDMAX",  var);
         units =                                 cdf.getVariableAttributeString("UNITS",     var);
         fill_val =                              cdf.getVariableAttributeDouble("FILLVAL",   var);
+        depend_0 =                              cdf.getVariableAttributeString("DEPEND_0",  var);
         
         elem_rec = suffix;
         
@@ -80,17 +81,18 @@ public class ImagCDFVariable
      * @param valid_max the largest possible value that the data can take
      * @param units name of the units that the data is in
      * @param fill_val the value that, when present in the data, shows that the data point was not recorded
+     * @param depend_0 the name of the time stamp variable in the CDF file for this data variable
      * @param elem_rec for geomagnetic data the element that this data represents.
      *                 for temperature data the name of the location where temperature was recorded
      * @param data the data as an array
      * @throws CDFException if the elem_rec or samp_per are invalid */
     public ImagCDFVariable (IMCDFVariableType variable_type, String field_nam,
                             double valid_min, double valid_max,
-                            String units, double fill_val,
+                            String units, double fill_val, String depend_0,
                             String elem_rec, double data [])
     throws CDFException
     {
-        this (variable_type, field_nam, valid_min, valid_max, units, fill_val, elem_rec, data, 0, data.length);
+        this (variable_type, field_nam, valid_min, valid_max, units, fill_val, depend_0, elem_rec, data, 0, data.length);
     }
     
     /** create an ImagCDFVariable from data and metadata for subsequent writing to a file
@@ -101,6 +103,7 @@ public class ImagCDFVariable
      * @param valid_max the largest possible value that the data can take
      * @param units name of the units that the data is in
      * @param fill_val the value that, when present in the data, shows that the data point was not recorded
+     * @param depend_0 the name of the time stamp variable in the CDF file for this data variable
      * @param elem_rec for geomagnetic data the element that this data represents.
      *                 for temperature data the name of the location where temperature was recorded
      * @param data the data as an array
@@ -109,7 +112,7 @@ public class ImagCDFVariable
      * @throws CDFException if the elem_rec or samp_per are invalid */
     public ImagCDFVariable (IMCDFVariableType variable_type, String field_nam,
                             double valid_min, double valid_max,
-                            String units, double fill_val,
+                            String units, double fill_val, String depend_0,
                             String elem_rec, double data [], int data_offset, int data_length)
     throws CDFException
     {
@@ -121,6 +124,7 @@ public class ImagCDFVariable
         this.valid_max = valid_max;
         this.units = units;
         this.fill_val = fill_val;
+        this.depend_0 = depend_0;
         this.elem_rec = elem_rec;
         this.data = data;
         this.data_offset = data_offset;
@@ -171,12 +175,7 @@ public class ImagCDFVariable
         cdf.addVariableAttribute ("VALIDMAX",      var, new Double (valid_max));
         cdf.addVariableAttribute ("UNITS",         var, units);
         cdf.addVariableAttribute ("FILLVAL",       var, new Double (fill_val));
-        if (isVectorGeomagneticData())
-            cdf.addVariableAttribute("DEPEND_0",   var, IMCDFVariableType.VectorTimeStampsVarName);
-        else if (isScalarGeomagneticData())
-            cdf.addVariableAttribute("DEPEND_0",   var, IMCDFVariableType.ScalarTimeStampsVarName);
-        else
-            cdf.addVariableAttribute("DEPEND_0",   var, IMCDFVariableType.getTemperatureTimeStampsVarName(suffix));
+        cdf.addVariableAttribute ("DEPEND_0",      var, depend_0);
         cdf.addVariableAttribute ("DISPLAY_TYPE",  var, "time_series");
         if (isScalarGeomagneticData() || isVectorGeomagneticData())
             cdf.addVariableAttribute ("LABLAXIS",  var, suffix);
@@ -207,6 +206,7 @@ public class ImagCDFVariable
     public double getValidMaximum () { return valid_max; }
     public String getUnits () { return units; }
     public double getFillValue () { return fill_val; }
+    public String getDepend0 () { return depend_0; }
     public String getElementRecorded () { return elem_rec; }
     
     public double [] getData () 

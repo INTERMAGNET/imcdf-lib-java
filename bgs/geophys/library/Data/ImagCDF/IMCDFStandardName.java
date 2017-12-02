@@ -21,8 +21,10 @@ implements IMCDFPrintEnum
     /** code for the standard name:
      *      INTERMAGNET_1_SECOND - conforms to the INTERMAGNET 1-second standard
      *      INTERMAGNET_1_MINUTE - conforms to the INTERMAGNET minute mean standard
-     *      INTERMAGNET_1_MINUTE_QD - conforms to the INTERMAGNET minute mean standard, modified for quasi-definitive data */
-    public enum StandardName {INTERMAGNET_1_SECOND, INTERMAGNET_1_MINUTE, INTERMAGNET_1_MINUTE_QD};
+     *      INTERMAGNET_1_MINUTE_QD - conforms to the INTERMAGNET minute mean standard, modified for quasi-definitive data
+     *      INTERMAGNET_1_SECOND_QD - conforms to the INTERMAGNET 1-second standard, modified for quasi-definitive data */
+    public enum StandardName {INTERMAGNET_1_SECOND, INTERMAGNET_1_MINUTE, 
+                              INTERMAGNET_1_MINUTE_QD, INTERMAGNET_1_SECOND_QD};
     
 
     // the standard represented by this object
@@ -47,6 +49,8 @@ implements IMCDFPrintEnum
             stand_name = StandardName.INTERMAGNET_1_MINUTE;
         else if (stand_name_string.equalsIgnoreCase("INTERMAGNET_1-Minute_QD"))
             stand_name = StandardName.INTERMAGNET_1_MINUTE_QD;
+        else if (stand_name_string.equalsIgnoreCase("INTERMAGNET_1-Second_QD"))
+            stand_name = StandardName.INTERMAGNET_1_SECOND_QD;
         else
             throw new CDFException("Invalid standard level code: " + stand_name_string);
     }
@@ -63,6 +67,7 @@ implements IMCDFPrintEnum
             case INTERMAGNET_1_SECOND: return "INTERMAGNET_1-Second";
             case INTERMAGNET_1_MINUTE: return "INTERMAGNET_1-Minute";
             case INTERMAGNET_1_MINUTE_QD: return "INTERMAGNET_1-Minute_QD";
+            case INTERMAGNET_1_SECOND_QD: return "INTERMAGNET_1-Second_QD";
         }
         return "Unknown";
     }    

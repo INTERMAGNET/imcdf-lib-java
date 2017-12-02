@@ -17,10 +17,11 @@ import java.text.ParseException;
 public class IMCDFVariableType 
 {
     
-    public static final String VectorTimeStampsVarName = "GeomagneticVectorTimes";
-    public static final String ScalarTimeStampsVarName = "GeomagneticScalarTimes";
+    public static final String DefaultTimeStampsVarName = "DataTimes";
+    public static final String DefaultVectorTimeStampsVarName = "GeomagneticVectorTimes";
+    public static final String DefaultScalarTimeStampsVarName = "GeomagneticScalarTimes";
     
-    public static String getTemperatureTimeStampsVarName (String suffix)
+    public static String getDefaultTemperatureTimeStampsVarName (String suffix)
     {
         return "Temperature" + suffix + "Times";
     }
