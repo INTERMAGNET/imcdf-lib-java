@@ -93,10 +93,9 @@ public class ImagCDFFilename
             else if (sample_period == 2419400.0 || sample_period == 2505600.0 || sample_period == 2592000) interval = Interval.MONTHLY;
             else if (sample_period == 31536000.0 || sample_period == 31622400.0) interval = Interval.ANNUAL;
             else interval = Interval.UNKNOWN;
+            constructFilename(observatoryCode, date, publicationLevel, interval, characterCase);
         }
         catch (CDFException e) { throw new ParseException ("Can't find sample period from ImagCDF data", -1); }
-        
-        constructFilename(observatoryCode, date, publicationLevel, interval, characterCase);
     }
     
     // Property accessors
