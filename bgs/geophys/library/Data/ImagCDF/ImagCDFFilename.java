@@ -93,10 +93,9 @@ public class ImagCDFFilename
             else if (sample_period == 2419400.0 || sample_period == 2505600.0 || sample_period == 2592000) interval = Interval.MONTHLY;
             else if (sample_period == 31536000.0 || sample_period == 31622400.0) interval = Interval.ANNUAL;
             else interval = Interval.UNKNOWN;
+            constructFilename(observatoryCode, date, publicationLevel, interval, characterCase);
         }
         catch (CDFException e) { throw new ParseException ("Can't find sample period from ImagCDF data", -1); }
-        
-        constructFilename(observatoryCode, date, publicationLevel, interval, characterCase);
     }
     
     // Property accessors
@@ -138,32 +137,32 @@ public class ImagCDFFilename
                 case 18:
                     date = yyyy.parse (filename.substring(4, 8));
                     interval = Interval.ANNUAL;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (9, 10));
+                    publicationLevel = new IMCDFPublicationLevel (filename.substring (14, 15));
                     break;
                 case 20:
                     date = yyyyMM.parse (filename.substring(4, 10));
                     interval = Interval.MONTHLY;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (11, 12));
+                    publicationLevel = new IMCDFPublicationLevel (filename.substring (16, 17));
                     break;
                 case 22:
                     date = yyyyMMdd.parse (filename.substring(4, 12));
                     interval = Interval.DAILY;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (13, 14));
+                    publicationLevel = new IMCDFPublicationLevel (filename.substring (18, 19));
                     break;
                 case 26:
                     date = yyyyMMdd_HH.parse (filename.substring(4, 15));
                     interval = Interval.HOURLY;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (16, 17));
+                    publicationLevel = new IMCDFPublicationLevel (filename.substring (21, 22));
                     break;
                 case 28:
                     date = yyyyMMdd_HHmm.parse (filename.substring(4, 17));
                     interval = Interval.MINUTE;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (18, 19));
+                    publicationLevel = new IMCDFPublicationLevel (filename.substring (23, 24));
                     break;
                 case 30:
                     date = yyyyMMdd_HHmmss.parse (filename.substring(4, 19));
                     interval = Interval.SECOND;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (20, 21));
+                    publicationLevel = new IMCDFPublicationLevel (filename.substring (25, 26));
                     break;
                 default:
                     throw new ParseException("", 0);
