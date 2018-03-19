@@ -588,14 +588,24 @@ implements IMCDFWriteProgressListener
      * @return the element index or a -ve number if there is no scalar element in the file */
     public int findScalarElement ()
     {
-        int count;
-
-        for (count=0; count<elements.length; count++)
+        for (int count=0; count<elements.length; count++)
         {
             if (elements[count].isScalarGeomagneticData())
                 return count;
         }
         return -1;
+    }
+    
+    /** find the timestamps for scalar data which may be the same as
+     * those for vector data, or may not exist
+     * @return a time stamp object or null if there is no scalar data
+     */
+    public ImagCDFVariableTS findScalarTimeStamps ()
+    {
+        int scalar_index = findScalarElement();
+        if (scalar_index < 0) return null;
+        ImagCDFVariable scalar_element = getElement(scalar_index);
+        return findTimeStamps(scalar_element);
     }
     
     /** get the element code string corresponding to the given vector and scalar elements

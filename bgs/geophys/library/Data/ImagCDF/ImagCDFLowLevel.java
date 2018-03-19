@@ -333,7 +333,15 @@ public class ImagCDFLowLevel
     public void addData (Variable var, int rec_no, double data [], int data_offset, int data_length)
     throws CDFException
     {
-        var.putHyperData (rec_no, data_length, 1, new long [] {data_offset}, new long [] {data_length}, new long [] {0}, data);
+        double data_slice [];
+        if (data_offset != 0 || data_length != data.length)
+        {
+            // we need to slice the data - I can't see a way to do this with the Java CDF library
+            data_slice = new double [data_length];
+            System.arraycopy(data, data_offset, data_slice, 0, data_length);
+        }
+        else data_slice = data;
+        var.putHyperData (rec_no, data_length, 1, new long [] {0}, new long [] {data_length}, new long [] {0}, data_slice);
     }
     
     /** put a time stamp into a record in the CDF file 
@@ -368,7 +376,15 @@ public class ImagCDFLowLevel
     public void addTimeStamp (Variable var, int rec_no, long data [], int data_offset, int data_length)
     throws CDFException
     {
-        var.putHyperData (rec_no, data_length, 1, new long [] {data_offset}, new long [] {data_length}, new long [] {0}, data);
+        long data_slice [];
+        if (data_offset != 0 || data_length != data.length)
+        {
+            // we need to slice the data - I can't see a way to do this with the Java CDF library
+            data_slice = new long [data_length];
+            System.arraycopy(data, data_offset, data_slice, 0, data_length);
+        }
+        else data_slice = data;
+        var.putHyperData (rec_no, data_length, 1, new long [] {0}, new long [] {data_length}, new long [] {0}, data_slice);
     }
 
     
