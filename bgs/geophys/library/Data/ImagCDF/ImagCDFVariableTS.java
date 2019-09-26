@@ -78,7 +78,7 @@ public class ImagCDFVariableTS
     throws CDFException
     {
         int count;
-        
+        write_progress_listeners = new ArrayList<> ();
         this.var_name = var_name;
         time_stamps = new long [dates.length];
         for (count=0; count<time_stamps.length; count++)
