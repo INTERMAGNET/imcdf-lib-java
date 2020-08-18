@@ -1,5 +1,6 @@
 # imcdf-lib-java
 Java library code to read and write INTERMAGNET CDF (IMCDF) data files
+This repository from original SVN GA SVN
 
 Brief documentation on using the code is in the header of imcdf.java
 
