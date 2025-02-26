@@ -16,20 +16,34 @@ import java.text.ParseException;
  */
 public class IMCDFVariableType 
 {
-    
-    public static final String DefaultTimeStampsVarName = "DataTimes";
-    public static final String DefaultVectorTimeStampsVarName = "GeomagneticVectorTimes";
-    public static final String DefaultScalarTimeStampsVarName = "GeomagneticScalarTimes";
-    
+    /** the default name of the CDF variable used for time stamps where the same
+     * time stamp variable is used for both vector and scalar data (ie both have the same
+     * sample period) */
+    public static final String DEFAULT_TIME_STAMPS_VAR_NAME = "DataTimes";
+    /** the default name of the CDF variable used for time stamps for vector data, where
+     * this differs from the time stamps variable used for scalar data */
+    public static final String DEFAULT_VECTOR_TIME_STAMPS_VAR_NAME = "GeomagneticVectorTimes";
+    /** the default name of the CDF variable used for time stamps for scalar data, where
+     * this differs from the time stamps variable used for vector data */
+    public static final String DEFAULT_SCALAR_TIME_STAMPS_VAR_NAME = "GeomagneticScalarTimes";
+
+    /** get a variable name that can be used for temperature data
+     * @param suffix a suffix for the name of the temperature time stamp variable, so that
+     *        the CDF file can contain more than one temperature time stamp variable if there
+     *        are temperature data arrays with different sample periods in the CDF file
+     * @return the name of the variable */
     public static String getDefaultTemperatureTimeStampsVarName (String suffix)
     {
         return "Temperature" + suffix + "Times";
     }
     
-    /** code for the type of data that can be held:
-     * GeomagneticFieldElement - geomagnetic data
-     * Temperature - temperature data */
-    public enum VariableTypeCode {GeomagneticFieldElement, Temperature}
+    /** code for the type of data that can be held */
+    public enum VariableTypeCode {
+        /** geomagnetic data */
+        GeomagneticFieldElement, 
+        /** temperature data */
+        Temperature
+    }
 
     // the variable type code represented by this object
     private VariableTypeCode code;
@@ -55,6 +69,8 @@ public class IMCDFVariableType
             throw new ParseException("Invalid variable type code: " + code_string, 0);
     }
 
+    /** get the code for the type of CDF variable
+     * @return the code */
     public VariableTypeCode getCode () { return code; }
 
     /** get a string representation of the code

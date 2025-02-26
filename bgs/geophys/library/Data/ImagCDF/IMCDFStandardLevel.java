@@ -4,8 +4,6 @@
  */
 package bgs.geophys.library.Data.ImagCDF;
 
-import gsfc.nssdc.cdf.CDFException;
-
 /**
  * An object that represents the standard level of the data
  * 
@@ -18,19 +16,23 @@ public class IMCDFStandardLevel
 implements IMCDFPrintEnum
 {
 
-    /** code for the standard level:
-     *      NONE - does not conform to a standard;
-     *      PARTIAL - partially conforms to the relevant standard - details on the level of
-     *                conformance are in partial_stand_desc
-     *      FULL - fully conforms to the relevant standard */
-    public enum StandardLevel {NONE, PARTIAL, FULL};
+    /** code for the standard level */
+    public enum StandardLevel {
+        /** does not conform to a standard */
+        NONE, 
+        /** partially conforms to the relevant standard - details on the level of
+          * conformance are in partial_stand_desc */
+        PARTIAL, 
+        /** fully conforms to the relevant standard */
+        FULL
+    }
     
 
     // the standard represented by this object
     private StandardLevel stand_level;
     
     /** create a standards performance code from the enumeration of the codes
-     * @param code - one of the enumeration values for the code */
+     * @param stand_level one of the enumeration values for the code */
     public IMCDFStandardLevel (StandardLevel stand_level)
     {
         this.stand_level = stand_level;
@@ -38,9 +40,9 @@ implements IMCDFPrintEnum
     
     /** create a publication state code from a string
      * @param stand_level_string one of "none", "partial" or "full"
-     * @throw CDFException if the string could not be recognised */
+     * @throws IMCDFException if the string could not be recognised */
     public IMCDFStandardLevel (String stand_level_string)
-    throws CDFException
+    throws IMCDFException
     {
         if (stand_level_string.equalsIgnoreCase("none"))
             stand_level = StandardLevel.NONE;
@@ -49,9 +51,11 @@ implements IMCDFPrintEnum
         else if (stand_level_string.equalsIgnoreCase("full"))
             stand_level = StandardLevel.FULL;
         else
-            throw new CDFException("Invalid standard level code: " + stand_level_string);
+            throw new IMCDFException("Invalid standard level code: " + stand_level_string);
     }
-    
+
+    /** get the standard level code
+     * @return the standard level */
     public StandardLevel getStandardLevel () { return stand_level; }
     
     /** get a string representation of the code

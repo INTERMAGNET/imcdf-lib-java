@@ -4,8 +4,6 @@
  */
 package bgs.geophys.library.Data.ImagCDF;
 
-import gsfc.nssdc.cdf.CDFException;
-
 /**
  * An object that represents the standard name of the data
  * 
@@ -18,30 +16,33 @@ public class IMCDFStandardName
 implements IMCDFPrintEnum
 {
 
-    /** code for the standard name:
-     *      INTERMAGNET_1_SECOND - conforms to the INTERMAGNET 1-second standard
-     *      INTERMAGNET_1_MINUTE - conforms to the INTERMAGNET minute mean standard
-     *      INTERMAGNET_1_MINUTE_QD - conforms to the INTERMAGNET minute mean standard, modified for quasi-definitive data
-     *      INTERMAGNET_1_SECOND_QD - conforms to the INTERMAGNET 1-second standard, modified for quasi-definitive data */
-    public enum StandardName {INTERMAGNET_1_SECOND, INTERMAGNET_1_MINUTE, 
-                              INTERMAGNET_1_MINUTE_QD, INTERMAGNET_1_SECOND_QD};
-    
+    /** code for the standard name */
+    public enum StandardName {
+        /** conforms to the INTERMAGNET 1-second standard */
+        INTERMAGNET_1_SECOND, 
+        /** conforms to the INTERMAGNET minute mean standard */
+        INTERMAGNET_1_MINUTE, 
+        /** conforms to the INTERMAGNET minute mean standard, modified for quasi-definitive data */
+        INTERMAGNET_1_MINUTE_QD, 
+        /** conforms to the INTERMAGNET 1-second standard, modified for quasi-definitive data */
+        INTERMAGNET_1_SECOND_QD
+    }
 
     // the standard represented by this object
     private StandardName stand_name;
     
     /** create a standards performance code from the enumeration of the codes
-     * @param code - one of the enumeration values for the code */
+     * @param stand_name one of the enumeration values for the code */
     public IMCDFStandardName (StandardName stand_name)
     {
         this.stand_name = stand_name;
     }
     
     /** create a publication state code from a string
-     * @param stand_level_string one of "none", "partial" or "full"
-     * @throws CDFException if the string could not be recognised */
+     * @param stand_name_string one of "none", "partial" or "full"
+     * @throws IMCDFException if the string could not be recognised */
     public IMCDFStandardName (String stand_name_string)
-    throws CDFException
+    throws IMCDFException
     {
         if (stand_name_string.equalsIgnoreCase("INTERMAGNET_1-Second"))
             stand_name = StandardName.INTERMAGNET_1_SECOND;
@@ -52,9 +53,11 @@ implements IMCDFPrintEnum
         else if (stand_name_string.equalsIgnoreCase("INTERMAGNET_1-Second_QD"))
             stand_name = StandardName.INTERMAGNET_1_SECOND_QD;
         else
-            throw new CDFException("Invalid standard level code: " + stand_name_string);
+            throw new IMCDFException("Invalid standard level code: " + stand_name_string);
     }
     
+    /** get the name of the standard used by this data set
+     * @return the standard name */
     public StandardName getStandardName () { return stand_name; }
     
     /** get a string representation of the code

@@ -5,10 +5,12 @@
  */
 package bgs.geophys.library.Data.ImagCDF;
 
-import gsfc.nssdc.cdf.CDFException;
+import bgs.geophys.library.Misc.DateUtils;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.StringTokenizer;
 import java.util.TimeZone;
 
 /** 
@@ -18,93 +20,215 @@ public class ImagCDFFilename
 {
 
     // Date formatting objects
-    private static SimpleDateFormat yyyy;
-    private static SimpleDateFormat yyyyMM;
-    private static SimpleDateFormat yyyyMMdd;
-    private static SimpleDateFormat yyyyMMdd_HH;
-    private static SimpleDateFormat yyyyMMdd_HHmm;
-    private static SimpleDateFormat yyyyMMdd_HHmmss;
+    private static final SimpleDateFormat YYYY;
+    private static final SimpleDateFormat YYYYMM;
+    private static final SimpleDateFormat YYYYMMDD;
+    private static final SimpleDateFormat YYYYMMDD_HH;
+    private static final SimpleDateFormat YYYYMMDD_HHMM;
+    private static final SimpleDateFormat YYYYMMDD_HHMMSS;
     
     static {
         TimeZone gmtTimeZone = TimeZone.getTimeZone("gmt");
 
-        yyyy = new SimpleDateFormat("yyyy");
-        yyyy.setTimeZone(gmtTimeZone);
-        yyyyMM = new SimpleDateFormat("yyyyMM");
-        yyyyMM.setTimeZone(gmtTimeZone);
-        yyyyMMdd = new SimpleDateFormat("yyyyMMdd");
-        yyyyMMdd.setTimeZone(gmtTimeZone);
-        yyyyMMdd_HH = new SimpleDateFormat("yyyyMMdd_HH");
-        yyyyMMdd_HH.setTimeZone(gmtTimeZone);
-        yyyyMMdd_HHmm = new SimpleDateFormat("yyyyMMdd_HHmm");
-        yyyyMMdd_HHmm.setTimeZone(gmtTimeZone);
-        yyyyMMdd_HHmmss = new SimpleDateFormat("yyyyMMdd_HHmmss");
-        yyyyMMdd_HHmmss.setTimeZone(gmtTimeZone);
+        YYYY = new SimpleDateFormat("yyyy");
+        DateUtils.fixSimpleDateFormat(YYYY);
+        YYYYMM = new SimpleDateFormat("yyyyMM");
+        DateUtils.fixSimpleDateFormat(YYYYMM);
+        YYYYMMDD = new SimpleDateFormat("yyyyMMdd");
+        DateUtils.fixSimpleDateFormat(YYYYMMDD);
+        YYYYMMDD_HH = new SimpleDateFormat("yyyyMMdd_HH");
+        DateUtils.fixSimpleDateFormat(YYYYMMDD_HH);
+        YYYYMMDD_HHMM = new SimpleDateFormat("yyyyMMdd_HHmm");
+        DateUtils.fixSimpleDateFormat(YYYYMMDD_HHMM);
+        YYYYMMDD_HHMMSS = new SimpleDateFormat("yyyyMMdd_HHmmss");
+        DateUtils.fixSimpleDateFormat(YYYYMMDD_HHMMSS);
     }
     
     private String filename;
     private String observatoryCode;
     private Date date;
     private IMCDFPublicationLevel publicationLevel;
-    private Interval interval;
+    private Interval cadence;
+    private Interval coverage;
 
+    /** an enum describing both the cadence and the coverage of the data */
     public enum Interval {
-        UNKNOWN, ANNUAL, MONTHLY, DAILY, HOURLY, MINUTE, SECOND
+        /** not known */
+        UNKNOWN, 
+        /** annual mean */
+        ANNUAL, 
+        /** monthly mean */
+        MONTHLY, 
+        /** daily mean */
+        DAILY, 
+        /** hourly mean */
+        HOURLY, 
+        /** minute mean */
+        MINUTE, 
+        /** 1-second data */
+        SECOND
     }
     
+    /** an enum listing the possible cases for the filename */
     public enum Case {
-        UPPER, LOWER
+        /** upper case */
+        UPPER, 
+        /** lower case */
+        LOWER
     }
     
     /** Default constructor
     */
-    ImagCDFFilename() {
+    public ImagCDFFilename() {
         filename = "";
         observatoryCode = "";
         date = new Date();
         publicationLevel = new IMCDFPublicationLevel (IMCDFPublicationLevel.PublicationLevel.LEVEL_1);    
-        interval = Interval.UNKNOWN;
+        coverage = cadence = Interval.UNKNOWN;
     }
     
-    /** Creates a new instance of ImagCDFFilename */
+    /** Creates a new instance of ImagCDFFilename
+     * 
+     * @param observatoryCode the IAGA code
+     * @param date date/time for the first data sample
+     * @param publicationLevel the data type (reported, adjusted, ...)
+     * @param cadence the cadence
+     * @param coverage the coverage
+     * @param characterCase upper or lower
+     */
     public ImagCDFFilename (String observatoryCode, Date date, IMCDFPublicationLevel publicationLevel,
-                            Interval interval, Case characterCase)
+                            Interval cadence, Interval coverage, Case characterCase)
     {
-        constructFilename (observatoryCode, date, publicationLevel, interval, characterCase);
+        constructFilename (observatoryCode, date, publicationLevel, cadence, coverage, characterCase);
     }
     
-    /** Creates a new ImagCDFFilename instance by asking the sub class to parse a filename */
+    /** Creates a new ImagCDFFilename instance by asking the sub class to parse a filename
+     * 
+     * @param filename the filename to copy from
+     * @throws ParseException if the filename could not be parsed
+     */
     public ImagCDFFilename(String filename) throws ParseException {
         parseFilename(filename);
     }
     
-    /** Creates a new instance of Iaga2002Filename */
+    /** Creates a new instance of Iaga2002Filename
+     * 
+     * @param imag_cdf the data to construct a filename for
+     * @param characterCase upper or lower
+     * @throws ParseException if there was a problem with the data
+     */
     public ImagCDFFilename (ImagCDF imag_cdf, Case characterCase) throws ParseException {
         try { 
-            String observatoryCode = imag_cdf.getIagaCode();
+            String obsy_code = imag_cdf.getIagaCode();
             ImagCDFVariableTS ts = imag_cdf.findVectorTimeStamps();
-            Date date = ts.getStartDate();
-            IMCDFPublicationLevel publicationLevel = imag_cdf.getPublicationLevel();
-            double sample_period = ts.getSamplePeriod(); 
-            if (sample_period == 1.0) interval = Interval.SECOND;
-            else if (sample_period == 60.0) interval = Interval.MINUTE;
-            else if (sample_period == 3600.0) interval = Interval.HOURLY;
-            else if (sample_period == 86400.0) interval = Interval.DAILY;
-            else if (sample_period == 2419400.0 || sample_period == 2505600.0 || sample_period == 2592000) interval = Interval.MONTHLY;
-            else if (sample_period == 31536000.0 || sample_period == 31622400.0) interval = Interval.ANNUAL;
-            else interval = Interval.UNKNOWN;
-            constructFilename(observatoryCode, date, publicationLevel, interval, characterCase);
+            Date dt = ts.getStartDate();
+            GregorianCalendar cal = new GregorianCalendar (DateUtils.gmtTimeZone);
+            cal.setTime (dt);
+            IMCDFPublicationLevel pub_level = imag_cdf.getPublicationLevel();
+            double samp_per = ts.getSamplePeriod(); 
+            int n_samples = -1;
+            int vector_indices [] = imag_cdf.findVectorElements();
+            if (vector_indices != null) {
+                ImagCDFVariable var = imag_cdf.getElement (vector_indices[0]);
+                n_samples = var.getDataLength();
+            }
+            coverage = cadence = Interval.UNKNOWN;
+            int samples_in_year = -1, samples_in_month = -1, samples_in_day = -1, samples_in_hour = -1, samples_in_minute = -1, samples_in_second = -1;
+            switch ((int) samp_per) {
+                case 1:
+                    samples_in_year = DateUtils.daysInYear (cal.get (GregorianCalendar.YEAR)) * DateUtils.SECONDS_PER_DAY;
+                    samples_in_month = DateUtils.daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR)) * DateUtils.SECONDS_PER_DAY;
+                    samples_in_day = DateUtils.SECONDS_PER_DAY;
+                    samples_in_hour = DateUtils.SECONDS_PER_HOUR;
+                    samples_in_minute = DateUtils.SECONDS_PER_MINUTE;
+                    samples_in_second = 1;
+                    cadence = Interval.SECOND;
+                    break;
+                case 60:
+                    samples_in_year = DateUtils.daysInYear (cal.get (GregorianCalendar.YEAR)) * DateUtils.MINUTES_PER_DAY;
+                    samples_in_month = DateUtils.daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR)) * DateUtils.MINUTES_PER_DAY;
+                    samples_in_day = DateUtils.MINUTES_PER_DAY;
+                    samples_in_hour = DateUtils.MINUTES_PER_HOUR;
+                    samples_in_minute = 1;
+                    samples_in_second = -1;
+                    cadence = Interval.MINUTE;
+                    break;
+                case 3600:
+                    samples_in_year = DateUtils.daysInYear (cal.get (GregorianCalendar.YEAR)) * DateUtils.HOURS_PER_DAY;
+                    samples_in_month = DateUtils.daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR)) * DateUtils.HOURS_PER_DAY;
+                    samples_in_day = DateUtils.HOURS_PER_DAY;
+                    samples_in_hour = 1;
+                    samples_in_minute = -1;
+                    samples_in_second = -1;
+                    cadence = Interval.HOURLY;
+                    break;
+                case 86400:
+                    samples_in_year = DateUtils.daysInYear (cal.get (GregorianCalendar.YEAR));
+                    samples_in_month = DateUtils.daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR));
+                    samples_in_day = 1;
+                    samples_in_hour = -1;
+                    samples_in_minute = -1;
+                    samples_in_second = -1;
+                    cadence = Interval.DAILY;
+                    break;
+            }
+            if (cadence != Interval.UNKNOWN) {
+                if (cal.get (GregorianCalendar.MONTH) == 0 && cal.get (GregorianCalendar.DAY_OF_MONTH) == 1 &&
+                    cal.get (GregorianCalendar.HOUR) == 0 && cal.get (GregorianCalendar.MINUTE) == 0 &&
+                    cal.get (GregorianCalendar.SECOND) == 0 && cal.get (GregorianCalendar.MILLISECOND) == 0 &&
+                    n_samples == samples_in_year)
+                    coverage = Interval.ANNUAL;
+                else if (cal.get (GregorianCalendar.DAY_OF_MONTH) == 1 &&
+                         cal.get (GregorianCalendar.HOUR) == 0 && cal.get (GregorianCalendar.MINUTE) == 0 &&
+                         cal.get (GregorianCalendar.SECOND) == 0 && cal.get (GregorianCalendar.MILLISECOND) == 0 &&
+                         n_samples == samples_in_month)
+                    coverage = Interval.MONTHLY;
+                else if (cal.get (GregorianCalendar.HOUR) == 0 && cal.get (GregorianCalendar.MINUTE) == 0 &&
+                         cal.get (GregorianCalendar.SECOND) == 0 && cal.get (GregorianCalendar.MILLISECOND) == 0 &&
+                         n_samples == samples_in_day)
+                    coverage = Interval.DAILY;
+                else if (cal.get (GregorianCalendar.MINUTE) == 0 &&
+                         cal.get (GregorianCalendar.SECOND) == 0 && cal.get (GregorianCalendar.MILLISECOND) == 0 &&
+                         n_samples == samples_in_hour)
+                    coverage = Interval.HOURLY;
+                else if (cal.get (GregorianCalendar.SECOND) == 0 && cal.get (GregorianCalendar.MILLISECOND) == 0 &&
+                         n_samples == samples_in_minute)
+                    coverage = Interval.MINUTE;
+                else if (cal.get (GregorianCalendar.MILLISECOND) == 0 &&
+                         n_samples == samples_in_second)
+                    coverage = Interval.SECOND;
+            }
+            constructFilename(obsy_code, dt, pub_level, cadence, coverage, characterCase);
         }
-        catch (CDFException e) { throw new ParseException ("Can't find sample period from ImagCDF data", -1); }
+        catch (IMCDFException e) 
+        {
+            if (e.getMessage() != null)
+                throw new ParseException ("Error creating ImagCDF filename: " + e.getMessage(), -1);
+            throw new ParseException ("Error creating ImagCDF filename", -1); 
+        }
     }
     
-    // Property accessors
+    /** get the filename
+     * @return the filename */
     public String getFilename()                         { return filename; }
+    /** get the IAGA observatory code
+     * @return the IAGA code */
     public String getObservatoryCode()                  { return observatoryCode; }
+    /** get the date of the start of the data
+     * @return the date */
     public Date getDate()                               { return date; }
+    /** get the publication level (AKA data type)
+     * @return the publication level */
     public IMCDFPublicationLevel getPublicationLevel()  { return publicationLevel; }
-    public Interval getInterval()                       { return interval; }
+    /** get the data cadence
+     * @return the cadence */
+    public Interval getCadence()                        { return cadence; }
+    /** get the data coverage
+     * @return the coverage */
+    public Interval getCoverage()                       { return coverage; }
 
+    /** convert this filename to a string
+     * @return the filename */
     @Override
     public String toString() 
     {
@@ -115,70 +239,76 @@ public class ImagCDFFilename
 
     
     private void constructFilename (String observatoryCode, Date date, IMCDFPublicationLevel publication_level,
-                                            Interval interval, Case characterCase)
+                                    Interval cadence, Interval coverage, Case characterCase)
     {
          // Pass the arguments to the superclass. Exception will be passed up if any validation fails
         this.observatoryCode = validateObservatoryCode(observatoryCode).toUpperCase();
         this.date = date;
         this.publicationLevel = publication_level;
-        this.interval = interval;
+        this.cadence = cadence;
+        this.coverage = coverage;
         this.filename = generateFilename(characterCase);
     }
     
     /** Parses a filename, updating the properties accordingly. */
     private void parseFilename(String filename) throws ParseException {
-        String observatoryCode;
-        Date date;
-        IMCDFPublicationLevel publicationLevel;
-        Interval interval;
+        String obsy_code;
+        Date dt;
+        IMCDFPublicationLevel pub_level;
+        Interval local_coverage, local_cadence;
+        String parts [] = filename.split ("_");
         try {
-            switch (filename.length())
-            {
-                case 18:
-                    date = yyyy.parse (filename.substring(4, 8));
-                    interval = Interval.ANNUAL;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (14, 15));
+            switch (parts.length) {
+                case 4:
+                    switch (parts[1].length()) {
+                        case 4:
+                            dt = YYYY.parse (parts[1]);
+                            local_coverage = Interval.ANNUAL;
+                            break;
+                        case 6:
+                            dt = YYYYMM.parse (parts[1]);
+                            local_coverage = Interval.MONTHLY;
+                            break;
+                        case 8:
+                            dt = YYYYMMDD.parse (parts[1]);
+                            local_coverage = Interval.DAILY;
+                            break;
+                        default:
+                            throw new ParseException ("", 0);
+                    }
                     break;
-                case 20:
-                    date = yyyyMM.parse (filename.substring(4, 10));
-                    interval = Interval.MONTHLY;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (16, 17));
-                    break;
-                case 22:
-                    date = yyyyMMdd.parse (filename.substring(4, 12));
-                    interval = Interval.DAILY;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (18, 19));
-                    break;
-                case 26:
-                    date = yyyyMMdd_HH.parse (filename.substring(4, 15));
-                    interval = Interval.HOURLY;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (21, 22));
-                    break;
-                case 28:
-                    date = yyyyMMdd_HHmm.parse (filename.substring(4, 17));
-                    interval = Interval.MINUTE;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (23, 24));
-                    break;
-                case 30:
-                    date = yyyyMMdd_HHmmss.parse (filename.substring(4, 19));
-                    interval = Interval.SECOND;
-                    publicationLevel = new IMCDFPublicationLevel (filename.substring (25, 26));
+                case 5:
+                    String date_time = parts[1] + "_" + parts[2];
+                    switch (date_time.length()) {
+                        case 11:
+                            dt = YYYYMMDD_HH.parse (date_time);
+                            local_coverage = Interval.HOURLY;
+                            break;
+                        case 13:
+                            dt = YYYYMMDD_HHMM.parse (date_time);
+                            local_coverage = Interval.MINUTE;
+                            break;
+                        case 15:
+                            dt = YYYYMMDD_HHMMSS.parse (date_time);
+                            local_coverage = Interval.SECOND;
+                            break;
+                        default:
+                            throw new ParseException ("", 0);
+                    }
                     break;
                 default:
-                    throw new ParseException("", 0);
+                    throw new ParseException ("", 0);
             }
+            obsy_code = parts[0];
+            local_cadence = parseCadence(parts[parts.length -2]);
+            pub_level = new IMCDFPublicationLevel (parts[parts.length -1].substring (0,1));
             if (! filename.substring(filename.length() -4).equalsIgnoreCase(".cdf"))
                 throw new ParseException("", 0);
-            observatoryCode = filename.substring(0,3);
-        } catch (ParseException e) {
-            throw new ParseException("Filename: " + filename + " malformatted.", 0);
-        } catch (IllegalArgumentException e) {
-            throw new ParseException("Filename: " + filename + " malformatted.", 0);
-        } catch (CDFException e) {
+        } catch (ParseException | IllegalArgumentException | IMCDFException | IndexOutOfBoundsException e) {
             throw new ParseException("Filename: " + filename + " malformatted.", 0);
         }
         
-        constructFilename(observatoryCode, date, publicationLevel, interval, Case.LOWER);
+        constructFilename(obsy_code, dt, pub_level, local_cadence, local_coverage, Case.LOWER);
 
     }
     
@@ -186,32 +316,42 @@ public class ImagCDFFilename
     /** Creates a valid ImagCDF filename based on the properties of the class */
     private String generateFilename(Case characterCase) {
         SimpleDateFormat dateFormat;
-        String cadence, filename;
+        String local_cadence, fname;
         
-        switch(this.getInterval()){
-            case ANNUAL:  dateFormat = yyyy; cadence = "P1Y"; break;
-            case MONTHLY: dateFormat = yyyyMM; cadence = "P1M"; break;
-            case DAILY:   dateFormat = yyyyMMdd; cadence = "P1D"; break;
-            case HOURLY:  dateFormat = yyyyMMdd_HH; cadence = "PT1H"; break;
-            case MINUTE:  dateFormat = yyyyMMdd_HHmm; cadence = "PT1M"; break;
-            case SECOND:  dateFormat = yyyyMMdd_HHmmss; cadence = "PT1S"; break;
-            default:      dateFormat = yyyyMMdd_HHmmss; cadence = "UNKN"; break;
+        switch(this.getCadence()){
+            case ANNUAL:  local_cadence = "P1Y"; break;
+            case MONTHLY: local_cadence = "P1M"; break;
+            case DAILY:   local_cadence = "P1D"; break;
+            case HOURLY:  local_cadence = "PT1H"; break;
+            case MINUTE:  local_cadence = "PT1M"; break;
+            case SECOND:  local_cadence = "PT1S"; break;
+            default:      local_cadence = "UNKN"; break;
+        }
+
+        switch(this.getCoverage()){
+            case ANNUAL:  dateFormat = YYYY; break;
+            case MONTHLY: dateFormat = YYYYMM; break;
+            case DAILY:   dateFormat = YYYYMMDD; break;
+            case HOURLY:  dateFormat = YYYYMMDD_HH; break;
+            case MINUTE:  dateFormat = YYYYMMDD_HHMM; break;
+            case SECOND:  dateFormat = YYYYMMDD_HHMMSS; break;
+            default:      dateFormat = YYYYMMDD_HHMMSS; break;
         }
         
-        filename = this.getObservatoryCode()
+        fname = this.getObservatoryCode()
                     + "_"
                     + dateFormat.format(this.getDate())
                     + "_"
-                    + cadence
+                    + local_cadence
                     + "_"
                     + publicationLevel.toString()
                     + ".cdf";
         
         switch(characterCase) {
-            case UPPER: return filename.toUpperCase();
-            case LOWER: return filename.toLowerCase();
+            case UPPER: return fname.toUpperCase();
+            case LOWER: return fname.toLowerCase();
         }
-        return filename;
+        return fname;
     }
 
     // Constructor argument validation
@@ -220,6 +360,16 @@ public class ImagCDFFilename
             throw new IllegalArgumentException("Invalid observatoryCode argument. Must be exactly three characters.");
         }
         return observatoryCode;
+    }
+    
+    private Interval parseCadence (String cadence_str) {
+        if ("P1Y".equalsIgnoreCase(cadence_str)) return Interval.ANNUAL;
+        if ("P1M".equalsIgnoreCase(cadence_str)) return Interval.MONTHLY;
+        if ("P1D".equalsIgnoreCase(cadence_str)) return Interval.DAILY;
+        if ("PT1H".equalsIgnoreCase(cadence_str)) return Interval.HOURLY;
+        if ("PT1M".equalsIgnoreCase(cadence_str)) return Interval.MINUTE;
+        if ("PT1S".equalsIgnoreCase(cadence_str)) return Interval.SECOND;
+        return Interval.UNKNOWN;
     }
     
 }

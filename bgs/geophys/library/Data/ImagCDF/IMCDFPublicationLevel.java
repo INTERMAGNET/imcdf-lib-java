@@ -4,8 +4,6 @@
  */
 package bgs.geophys.library.Data.ImagCDF;
 
-import gsfc.nssdc.cdf.CDFException;
-
 /**
  * An object that represents the level of publication that a piece of geomagnetic data
  * has reached and converts to and from string representations of the code
@@ -19,11 +17,17 @@ public class IMCDFPublicationLevel
 implements IMCDFPrintEnum
 {
 
-    /** code for the type of baseline that has been applied to the data:
-     *      NONE - no baseline;
-     *      QUASI_DEFINITIVE - a quasi-definitive baseline
-     *      DEFINTIVE - a definitive baseline */
-    public enum PublicationLevel {LEVEL_1, LEVEL_2, LEVEL_3, LEVEL_4}
+    /** code for the publication level */
+    public enum PublicationLevel {
+        /** raw */
+        LEVEL_1, 
+        /** provisional */
+        LEVEL_2, 
+        /** quasi-definitive */
+        LEVEL_3, 
+        /** definitive */
+        LEVEL_4
+    }
 
     // the baseline code represented by this object
     private PublicationLevel level;
@@ -37,9 +41,9 @@ implements IMCDFPrintEnum
 
     /** create a baseline type code from a string
      * @param level_string one of "1", "2", "3" or "4"
-     * @throws CDFException if the string could not be recognised */
+     * @throws IMCDFException if the string could not be recognised */
     public IMCDFPublicationLevel (String level_string)
-    throws CDFException
+    throws IMCDFException
     {
         if (level_string.equalsIgnoreCase("1"))
             level = PublicationLevel.LEVEL_1;
@@ -50,9 +54,11 @@ implements IMCDFPrintEnum
         else if (level_string.equalsIgnoreCase("4"))
             level = PublicationLevel.LEVEL_4;
         else
-            throw new CDFException("Invalid baseline type code: " + level_string);
+            throw new IMCDFException("Invalid baseline type code: " + level_string);
     }
 
+    /** get the publication level (aka data type)
+     * @return the publication level */
     public PublicationLevel getLevel () { return level; }
 
     /** get a string representation of the code
@@ -75,7 +81,9 @@ implements IMCDFPrintEnum
     // IMF and IAGA 2002 data types
     /////////////////////////////////////////////////////////////////////////////////////
     
-    /** get an IMF data type */
+    /** get an IMF data type
+     * @param long_form true for string, false for single letter code
+     * @return the data type code */
     public String getIMFDataType (boolean long_form)
     {
         switch (level)
@@ -94,7 +102,9 @@ implements IMCDFPrintEnum
         return "R";
     }
     
-    /** get an IAGA-2002 data type */
+    /** get an IAGA-2002 data type
+     * @param long_form true for string, false for single letter code
+     * @return the data type code */
     public String getIAGA2002DataType (boolean long_form)
     {
         switch (level)

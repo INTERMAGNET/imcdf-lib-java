@@ -1,370 +1,124 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package bgs.geophys.library.Data.ImagCDF;
 
-import gsfc.nssdc.cdf.CDFException;
 import java.io.File;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- *
- * THE IMCDF ROUTINES SHOULD NOT HAVE DEPENDENCIES ON OTHER LIBRARY ROUTINES -
- * IT MUST BE POSSIBLE TO DISTRIBUTE THE IMCDF SOURCE CODE
- * 
- * An ImagCDF object contains metadata that applies to an entire CDF file. 
- * It also contains ImagCDFVariable objects
- * 
- * An ImagCDFVariable object contains metadata and data that apply to an individual
- * geomagnetic field element or a temperature time series. It also contains a reference
- * to an ImagCDFVariableTS object
- * 
- * An ImagCDFVariableTS object contains time stamps for the individual data points
- * in an ImagCDFVariable object
- * 
- * @author smf
- */
-public class ImagCDF 
+/** the base class for ImagCDF implementations */
+public abstract class ImagCDF
 implements IMCDFWriteProgressListener
 {
-
-    /** an enumeration that defines possible sample period values for the
-     * filename */
-    public enum FilenameSamplePeriod {ANNUAL, MONTHLY, DAILY, HOURLY, MINUTE, SECOND}
-
+    
     /** constant value used to indicate missing data */
     public static final double MISSING_DATA_VALUE = 99999.0;
+    /** constant value used to indicate missing time stamp */
+    public static final long MISSING_TIME_VALUE = - Long.MAX_VALUE;
 
-    /** the version of the data format that this software supports */
-    public static final String FORMAT_VERSION_SUPPORTED = "1.1";
+    /** the versions of the data format that this software supports */
+    public static final String [] FORMAT_VERSIONS_SUPPORTED = {"1.2", "1.3"};
     
     // a list of listeners who will recieve "percent complete" notification during writing of data
-    private List<IMCDFWriteProgressListener> write_progress_listeners;
+    private final List<IMCDFWriteProgressListener> write_progress_listeners;
     
-    // an array that holds the number of points in each variable to be written out and a pointer that
-    // shows which variable from this array is currently being written - the pointer can be set to
-    // both < 0 (before the start of writing) and >= the array length (after the end of writing)
-    // n_data_points_total is the total number of data points to write to file
-    private int n_samples_per_variable [];
-    private int variable_being_written_index;
-    private int n_data_points_total;
+    /** an array that holds the number of points in each variable to be written out */    
+    protected int n_samples_per_variable [];
+    /** a pointer that shows which variable from the n_samples_per_variable array is currently 
+     * being written - the pointer can be set to
+     * both &lt; 0 (before the start of writing) and &gt;= the array length (after the end of writing)
+     * n_data_points_total is the total number of data points to write to file */
+    protected int variable_being_written_index;
+    /** total number of data points */
+    protected int n_data_points_total;
     
-    // private member data - the CDF global attributes
-    private String format_description;
-    private String format_version;
-    private String title;
-    private String iaga_code;
-    private String elements_recorded;
-    private IMCDFPublicationLevel pub_level;
-    private Date pub_date;
-    private String observatory_name;
-    private double latitude;
-    private double longitude;
-    private double elevation;
-    private String institution;
-    private String vector_sens_orient;
-    private IMCDFStandardLevel standard_level;
-    private IMCDFStandardName standard_name;
-    private String standard_version;
-    private String partial_stand_desc;
-    private String source;
-    private String terms_of_use;
-    private String unique_identifier;
-    private String parent_identifiers [];
-    private URL reference_links [];
+    /** description of the ImagCDF data format */
+    protected String format_description;
+    /** version of the ImagCDF data format */
+    protected String format_version;
+    /** title for this data set */
+    protected String title;
+    /** IAGA code for the observatory */
+    protected String iaga_code;
+    /** list of the geomagnetism elements in the CDF file, one character per element */
+    protected String elements_recorded;
+    /** the publication level (AKA data type) */
+    protected IMCDFPublicationLevel pub_level;
+    /** the date of publication */
+    protected Date pub_date;
+    /** the name of the observatory */
+    protected String observatory_name;
+    /** the latitude at the observatory */
+    protected Double latitude;
+    /** the longitude at the observatory */
+    protected Double longitude;
+    /** the elevation at the observatory */
+    protected Double elevation;
+    /** the institute responsible for the observatory */
+    protected String institution;
+    /** the orientation of the sensor used to record the vector data */
+    protected String vector_sens_orient;
+    /** the standard to which the data conforms */
+    protected IMCDFStandardLevel standard_level;
+    /** the name of the standard to which the data conforms */
+    protected IMCDFStandardName standard_name;
+    /** the version of the standard to which the data conforms */
+    protected String standard_version;
+    /** for data sets only partially meeting a standard, this describes which
+     * parts of the standard the data set meets */
+    protected String partial_stand_desc;
+    /** the source of the data */
+    protected String source;
+    /** terms under which users can use the data */
+    protected String terms_of_use;
+    /** a persistent identifier for the data */
+    protected String unique_identifier;
+    /** a list of parent identifiers for the data */
+    protected String parent_identifiers [];
+    /** a list of URLs that describe the data */
+    protected URL reference_links [];
 
-    // private member data - the field element and temperature data arrays
-    private ImagCDFVariable elements [];
-    private ImagCDFVariable temperatures [];
+    /** the field element data array */
+    protected ImagCDFVariable elements [];
+    /** the temperature data array */
+    protected ImagCDFVariable temperatures [];
     
-    // private member data - the time stamps for the field data and the temperature data
-    private ImagCDFVariableTS time_stamps [];
-    
-    /** read an ImagCDF file
-     * @param file the CDF file
-     * @throws CDFException if there is an error */
-    public ImagCDF (File file)
-    throws CDFException
+    /** the time stamps for the field data and the temperature data */
+    protected ImagCDFVariableTS time_stamps [];
+
+    /** create a new empty ImagCDF object */
+    protected ImagCDF ()
     {
         write_progress_listeners = new ArrayList<> ();
-        
-        // check that the CDF libraries are available
-        String errmsg = ImagCDFLowLevel.checkNativeLib("");
-        if (errmsg != null) throw new CDFException (errmsg);
-        
-        // open the CDF file
-        ImagCDFLowLevel cdf = null;
-        CDFException stored_close_exception = null;
-        try
-        {
-            cdf = new ImagCDFLowLevel (file, ImagCDFLowLevel.CDFOpenType.CDFOpen, ImagCDFLowLevel.CDFCompressType.None);
-
-            // get global metadata
-            List<String> links = new ArrayList<String> ();
-            List<String> pids = new ArrayList<String> ();
-            format_description =                                  cdf.getGlobalAttributeString("FormatDescription", 0, true);
-            format_version =                                      cdf.getGlobalAttributeString("FormatVersion",     0, true);
-            title =                                               cdf.getGlobalAttributeString("Title",             0, true);
-            iaga_code =                                           cdf.getGlobalAttributeString("IagaCode",          0, true);
-            elements_recorded =                                   cdf.getGlobalAttributeString("ElementsRecorded",  0, true);
-            pub_level =                new IMCDFPublicationLevel (cdf.getGlobalAttributeString("PublicationLevel",  0, true));
-            pub_date =                                            cdf.getGlobalAttributeDate  ("PublicationDate",   0, true);
-            observatory_name =                                    cdf.getGlobalAttributeString("ObservatoryName",   0, true);
-            latitude =                                            cdf.getGlobalAttributeDouble("Latitude",          0, true);
-            longitude =                                           cdf.getGlobalAttributeDouble("Longitude",         0, true);
-            elevation =                                           cdf.getGlobalAttributeDouble("Elevation",         0, true);
-            institution =                                         cdf.getGlobalAttributeString("Institution",       0, true);
-            vector_sens_orient =                                  cdf.getGlobalAttributeString("VectorSensOrient",  0, false);
-            standard_level =              new IMCDFStandardLevel (cdf.getGlobalAttributeString("StandardLevel",     0, true));
-            String standard_name_string =                         cdf.getGlobalAttributeString("StandardName",      0, false);
-            standard_version =                                    cdf.getGlobalAttributeString("StandardVersion",   0, false);
-            partial_stand_desc =                                  cdf.getGlobalAttributeString("PartialStandDesc",  0, false);
-            source =                                              cdf.getGlobalAttributeString("Source",            0, true);
-            terms_of_use =                                        cdf.getGlobalAttributeString("TermsOfUse",        0, false);
-            unique_identifier =                                   cdf.getGlobalAttributeString("UniqueIdentifier",  0, false);
-            if (standard_name_string == null) standard_name = null;
-            else standard_name = new IMCDFStandardName (standard_name_string); 
-            String string = "";
-            for (int count=0; string != null; count ++)
-            {
-                string =                                          cdf.getGlobalAttributeString("ParentIdentifiers", count, false);
-                if (string != null) pids.add (string);
-            }
-            string = "";
-            for (int count=0; string != null; count ++)
-            {
-                string =                                          cdf.getGlobalAttributeString("ReferenceLinks", count, false);
-                if (string != null) links.add (string);
-            }
-
-            // sort out the array of reference links
-            reference_links = new URL [links.size()];
-            int count = 0;
-            try
-            {   
-                for (String s : links)
-                {
-                    reference_links [count ++] = new URL (s);
-                }
-            }
-            catch (MalformedURLException ex)
-            {
-                throw new CDFException ("Badly formed URL in reference link " + (count +1));
-            }
-
-            // sort out the array of parent identifiers
-            parent_identifiers = new String [pids.size()];
-            count = 0;
-            for (String s : pids)
-            {
-                parent_identifiers [count ++] = s;
-            }
-        
-            // get geomagnetic field data - find variable names based on elements recorded
-            IMCDFVariableType field_var_type = new IMCDFVariableType (IMCDFVariableType.VariableTypeCode.GeomagneticFieldElement);
-            int n_elements = elements_recorded.length();
-            elements = new ImagCDFVariable [n_elements];
-            for (count=0; count<n_elements; count++)
-                elements [count] = new ImagCDFVariable(cdf, field_var_type, elements_recorded.substring(count, count +1));
-        
-            // find the number of temperature variables and get temperature data
-            IMCDFVariableType temperature_var_type = new IMCDFVariableType (IMCDFVariableType.VariableTypeCode.Temperature);
-            int n_temperatures = 0;
-            while (cdf.isVariableExist (temperature_var_type.getCDFFileVariableName(Integer.toString (n_temperatures +1)))) n_temperatures ++;
-            temperatures = new ImagCDFVariable [n_temperatures];
-            for (count=0; count<n_temperatures; count++)
-                temperatures [count] = new ImagCDFVariable(cdf, temperature_var_type, Integer.toString (count +1));
-
-            // work out the names of the time stamp arrays
-            List<String> unique_ts_names = new ArrayList<> ();
-            for (count=0; count<elements.length; count++)
-            {
-                String depend_0 = elements[count].getDepend0();
-                boolean found = false;
-                for (String ts_name : unique_ts_names)
-                {
-                    if (ts_name.equals(depend_0)) found = true;
-                }
-                if (! found) unique_ts_names.add (depend_0);
-            }
-            for (count=0; count<temperatures.length; count++)
-            {
-                String depend_0 = temperatures[count].getDepend0();
-                boolean found = false;
-                for (String ts_name : unique_ts_names)
-                {
-                    if (ts_name.equals(depend_0)) found = true;
-                }
-                if (! found) unique_ts_names.add (depend_0);
-            }
-            
-            // read the time stamp arrays
-            time_stamps = new ImagCDFVariableTS [unique_ts_names.size()];
-            for (count=0; count<time_stamps.length; count++)
-                time_stamps [count] = new ImagCDFVariableTS (cdf, unique_ts_names.get(count));
-        }
-        finally
-        {
-            try
-            {
-                // close the file
-                if (cdf != null) cdf.close ();
-            }
-            catch (CDFException e)
-            {
-                stored_close_exception = e;
-            }
-        }
-        
-        // process any problems when the file was closed
-        if (stored_close_exception != null) throw stored_close_exception;
-        
-        checkMetadata ();
-    }
-
-    /** create an ImagCDF object from data and metadata (prior to writing to a file)
-     * @param iaga_code IAGA code of the observatory
-     * @param pub_level the amount of editing done on the data
-     * @param pub_date the date the data was published
-     * @param observatory_name Full name of the observatory
-     * @param latitude Geographic latitude of the observing position
-     * @param longitude Geographic longitude of the observing position
-     * @param elevation Height of the observing position above sea level
-     * @param institution name of the institution
-     * @param vector_sens_orient the orientation of the vector sensor (which may differ 
-     *                           from that of the elements reported in the data)
-     * @param standard_level describes whether the data conforms to a standard
-     * @param standard_name name for the standard
-     * @param standard_version version of the standard
-     * @param partial_stand_desc description of the parts of the standard that are applicable to this data
-     * @param source set to one of "institute", "intermagnet" or "wdc"
-     * @param unique_identifier an identifier such as a DOI
-     * @param parent_identifiers the unique identifiers of any parent data sets
-     * @param reference_links URLs of relevance, e.g. www.intermagnet.org
-     * @param elements the geomagnetic data - depend_0 values must be set to the correct time stamp name
-     * @param temperatures the temperature data (may be null) - depend_0 values must be set to the correct time stamp name
-     * @param time_stamps the time stamps for the elements and temperature - there must be at least
-     *                    one entry for every unique "depend_0" entry in the elements and temperatures
-     * @throws CDFException if the vector data elements don't have the same sample period or start date */
-    public ImagCDF (String iaga_code, IMCDFPublicationLevel pub_level,
-                    Date pub_date, String observatory_name, 
-                    double latitude, double longitude, double elevation, 
-                    String institution, String vector_sens_orient,
-                    IMCDFStandardLevel standard_level, IMCDFStandardName standard_name,
-                    String standard_version, String partial_stand_desc,
-                    String source, String unique_identifier, String parent_identifiers [],
-                    URL reference_links [], ImagCDFVariable elements [], 
-                    ImagCDFVariable temperatures [], ImagCDFVariableTS time_stamps [])
-    throws CDFException
-    {
-        write_progress_listeners = new ArrayList<> ();
-        
-        // global metadata
-        this.format_description = "INTERMAGNET CDF Format";
-        this.format_version = FORMAT_VERSION_SUPPORTED;
-        this.title = "Geomagnetic time series data";
-        this.iaga_code = iaga_code;
-        this.pub_level = pub_level;
-        this.pub_date = pub_date;
-        this.observatory_name = observatory_name;
-        this.latitude = latitude;
-        this.longitude = longitude;
-        this.elevation = elevation;
-        this.institution = institution;
-        this.vector_sens_orient = vector_sens_orient == null ? "" : vector_sens_orient;
-        this.standard_level = standard_level;
-        this.standard_name = standard_name;
-        this.standard_version = standard_version == null ? "" : standard_version;
-        this.partial_stand_desc = partial_stand_desc == null ? "" : partial_stand_desc;
-        this.source = source;
-        this.terms_of_use = getINTERMAGNETTermsOfUse();
-        this.unique_identifier = unique_identifier == null ? "" : unique_identifier;
-        this.parent_identifiers = parent_identifiers;
-        this.reference_links = reference_links;
-        
-        // data arrays
-        this.elements = elements;
-        if (temperatures == null) 
-            this.temperatures = new ImagCDFVariable [0];
-        else 
-            this.temperatures = temperatures;
-        
-        // record time stamps
-        this.time_stamps = time_stamps;
-
-        // construct elements recorded from variables
-        this.elements_recorded = "";
-        for (int count=0; count<elements.length; count++)
-            elements_recorded += elements[count].getElementRecorded().toUpperCase();
-        
-        // fix the ordering of some standard orientation codes
-        if (elements_recorded.contains("H") &&
-            elements_recorded.contains("D") &&
-            elements_recorded.contains("Z")) 
-        {
-            switch (elements_recorded.length())
-            {
-                case 3:
-                    elements_recorded = "HDZ";
-                    break;
-                case 4:
-                    if (elements_recorded.contains("F")) elements_recorded = "HDZF";
-                    if (elements_recorded.contains("G")) elements_recorded = "HDZG";
-                    if (elements_recorded.contains("S")) elements_recorded = "HDZS";
-                    break;
-            }
-        }
-        if (elements_recorded.contains("X") &&
-            elements_recorded.contains("Y") &&
-            elements_recorded.contains("Z")) 
-        {
-            switch (elements_recorded.length())
-            {
-                case 3:
-                    elements_recorded = "XYZ";
-                    break;
-                case 4:
-                    if (elements_recorded.contains("F")) elements_recorded = "XYZF";
-                    if (elements_recorded.contains("G")) elements_recorded = "XYZG";
-                    if (elements_recorded.contains("S")) elements_recorded = "XYZS";
-                    break;
-            }
-        }
-        if (elements_recorded.contains("D") &&
-            elements_recorded.contains("I") &&
-            elements_recorded.contains("F")) 
-        {
-            switch (elements_recorded.length())
-            {
-                case 3:
-                    elements_recorded = "DIF";
-                    break;
-                case 4:
-                    if (elements_recorded.contains("F")) elements_recorded = "DIFF";
-                    if (elements_recorded.contains("G")) elements_recorded = "DIFG";
-                    if (elements_recorded.contains("S")) elements_recorded = "DIFS";
-                    break;
-            }
-        }
-        
-        checkMetadata();
     }
     
+     /** write this data to a CDF file - implementation is provided by sub-classes
+     * @param cdf_file the CDF file to write into
+     * @param compress true to compress the CDF file, FALSE not to compress
+     * @param overwrite_existing true to overwrite any existing file, false to throw exception if file exists
+     * @throws IMCDFException if there is an error, including user abort */
+    public abstract void write (File cdf_file, boolean compress, boolean overwrite_existing)
+    throws IMCDFException;
+
+    /** add a listener that receives notification of the progress of write operations
+     * @param listener the listener */
     public void addWriteProgressListener (IMCDFWriteProgressListener listener)
     {
         write_progress_listeners.add (listener);
     }
+    /** remove a listener that receives notification of the progress of write operations
+     * @param listener the listener */
     public void removeWriteProgressListener (IMCDFWriteProgressListener listener)
     {
         write_progress_listeners.remove(listener);
     }
-    private boolean callWriteProgressListeners (int current_data_set_percent)
+    /** call the listeners with notification of progress of writing
+     * @param current_data_set_percent how complete the write operation is
+     * @return the completeness as a percent
+     */
+    protected boolean callWriteProgressListeners (int current_data_set_percent)
     {
         Iterator<IMCDFWriteProgressListener> i;
         int n_data_points_written, percent, count;
@@ -389,165 +143,85 @@ implements IMCDFWriteProgressListener
         return continue_writing;
     }
 
-    /** write this data to a CDF file
-     * @param cdf_file the CDF file to write into
-     * @param compress true to compress the CDF file, FALSE not to compress
-     * @param overwrite_existing true to overwrite any existing file, false to throw exception if file exists
-     * @throws CDFException if there is an error, including user abort */
-    public void write (File cdf_file, boolean compress, boolean overwrite_existing)
-    throws CDFException
-    {
-        int count;
-        boolean abort;
-        String string;
-        ImagCDFLowLevel cdf;
-        List <Integer> lengths;
-        CDFException stored_close_exception;
-        
-        // check that the CDF libraries are available
-        string = ImagCDFLowLevel.checkNativeLib("");
-        if (string != null) throw new CDFException (string);
-        
-        abort = false;
-        cdf = null;
-        stored_close_exception = null;
-        try
-        {
-            cdf = new ImagCDFLowLevel (cdf_file, 
-                                       overwrite_existing ? ImagCDFLowLevel.CDFOpenType.CDFForceCreate : ImagCDFLowLevel.CDFOpenType.CDFCreate,
-                                       compress ? ImagCDFLowLevel.CDFCompressType.GZip6 : ImagCDFLowLevel.CDFCompressType.None);
-
-            cdf.addGlobalAttribute ("FormatDescription",         0, true,  format_description);
-            cdf.addGlobalAttribute ("FormatVersion",             0, true,  format_version);
-            cdf.addGlobalAttribute ("Title",                     0, true,  title);
-            cdf.addGlobalAttribute ("IagaCode",                  0, true,  iaga_code);
-            cdf.addGlobalAttribute ("ElementsRecorded",          0, true,  elements_recorded);
-            cdf.addGlobalAttribute ("PublicationLevel",          0, true,  pub_level);
-            cdf.addGlobalAttribute ("PublicationDate",           0, true,  pub_date);
-            cdf.addGlobalAttribute ("ObservatoryName",           0, true,  observatory_name);
-            cdf.addGlobalAttribute ("Latitude",                  0, true,  new Double (latitude));
-            cdf.addGlobalAttribute ("Longitude",                 0, true,  new Double (longitude));
-            cdf.addGlobalAttribute ("Elevation",                 0, true,  new Double (elevation));
-            cdf.addGlobalAttribute ("Institution",               0, true,  institution);
-            cdf.addGlobalAttribute ("VectorSensOrient",          0, false, vector_sens_orient);
-            cdf.addGlobalAttribute ("StandardLevel",             0, true,  standard_level);
-            cdf.addGlobalAttribute ("StandardName",              0, false, standard_name);
-            cdf.addGlobalAttribute ("StandardVersion",           0, false, standard_version);
-            cdf.addGlobalAttribute ("PartialStandDesc",          0, false, partial_stand_desc);
-            cdf.addGlobalAttribute ("Source",                    0, true,  source);
-            cdf.addGlobalAttribute ("TermsOfUse",                0, false, terms_of_use);
-            cdf.addGlobalAttribute ("UniqueIdentifier",          0, false, unique_identifier);
-            for (count=0; count<parent_identifiers.length; count++)
-                cdf.addGlobalAttribute ("ParentIdentifiers", count, true, parent_identifiers [count]);
-            for (count=0; count<reference_links.length; count++)
-                cdf.addGlobalAttribute ("ReferenceLinks",    count, true,  reference_links [count].toString());
-        
-            // set up variables for monitoring progress - the array containing the length of each sample must correspond to the
-            // order in which the data is written to file
-            lengths = new ArrayList <> ();
-            for (count=0; count<elements.length; count++)
-                lengths.add (new Integer(elements[count].getDataLength()));
-            for (count=0; count<temperatures.length; count++)
-                lengths.add (new Integer (temperatures[count].getDataLength()));
-            for (count=0; count<time_stamps.length; count++)
-                lengths.add (new Integer (time_stamps[count].getNSamples()));
-            n_samples_per_variable = new int [lengths.size()];
-            n_data_points_total = 0;
-            for (count=0; count<n_samples_per_variable.length; count++)
-            {
-                n_samples_per_variable [count] = lengths.get(count).intValue();
-                n_data_points_total += lengths.get(count).intValue();
-            }
-            variable_being_written_index = -1;
-            if (! callWriteProgressListeners (-1)) 
-            {
-                abort = true;
-            }
-        
-            // write the geomagnetic data to file
-            for (count=0; (count<elements.length) && (! abort); count++)
-            {
-                variable_being_written_index ++;
-                elements[count].addWriteProgressListener(this);
-                if (! elements[count].write (cdf, elements[count].getElementRecorded())) 
-                    abort = true;
-                elements[count].removeWriteProgressListener(this);
-            }
-         
-            // write the temperature data to file
-            for (count=0; (count<temperatures.length) && (! abort); count++)
-            {
-                variable_being_written_index ++;
-                temperatures[count].addWriteProgressListener(this);
-                if (! temperatures[count].write(cdf, Integer.toString (count +1))) 
-                    abort = true;
-                temperatures[count].removeWriteProgressListener(this);
-            }
-            
-            // write the time stamps to file
-            for (count=0; (count<time_stamps.length) && (! abort); count++)
-            {
-                variable_being_written_index ++;
-                time_stamps[count].addWriteProgressListener(this);
-                if (! time_stamps[count].write (cdf)) 
-                    abort = true;
-                time_stamps[count].removeWriteProgressListener(this);
-            }
-
-            variable_being_written_index ++;
-            if (! callWriteProgressListeners (101)) abort = true;
-        }
-        finally
-        {
-            try
-            {
-                // finalise the file
-                if (cdf != null) cdf.close ();
-
-                // remove the file if the operation was aborted
-                if (abort)
-                {
-                    cdf_file.delete();
-                    stored_close_exception = new CDFException ("User aborted write operation, " + cdf_file.getName() + " deleted");
-                }
-            }
-            catch (CDFException e)
-            {
-                stored_close_exception = e;
-            }
-        }
-        
-        // process any problems when the file was closed
-        if (stored_close_exception != null) throw stored_close_exception;
-    }
-    
+    /** get a description of the ImagCDF data format
+     * @return the description */
     public String getFormatDescription() { return format_description; }
+    /** get the version of this implementation of the ImagCDF data format
+     * @return the version */
     public String getFormatVersion() { return format_version; }
+    /** get the title for this data set
+     * @return the title */
     public String getTitle() { return title; }
+    /** get the IAGA code for the observatory
+     * @return the IAGA code */
     public String getIagaCode() { return iaga_code; }
+    /** get the orientation of the data - also acts as a list of data arrays in the CDF file
+     * @return the orientation */
     public String getElementsRecorded() { return elements_recorded; }
+    /** get the publication level (AKA data "type")
+     * @return the publication level */
     public IMCDFPublicationLevel getPublicationLevel() {  return pub_level; }
+    /** get the date of publication
+     * @return the date */
     public Date getPublicationDate() { return pub_date; }
+    /** get the name of the observatory
+     * @return the name */
     public String getObservatoryName() { return observatory_name; }
-    public double getLatitude() { return latitude; }
-    public double getLongitude() { return longitude; }
-    public double getElevation() { return elevation; }
+    /** get the observatory's latitude
+     * @return the latitude */
+    public Double getLatitude() { return latitude; }
+    /** get the observatory's longitude
+     * @return the longitude */
+    public Double getLongitude() { return longitude; }
+    /** get the observatory's elevation
+     * @return the elevation */
+    public Double getElevation() { return elevation; }
+    /** get the name of the responsible institute
+     * @return the institute name */
     public String getInstitution() { return institution; }
+    /** get the orientation of the sensor used to record the vector data
+     * @return the orientation */
     public String getVectorSensorOrientation() { return vector_sens_orient; }
+    /** get the standards to which the data conforms
+     * @return the standard */
     public IMCDFStandardLevel getStandardLevel() { return standard_level; }
+    /** get the name of the standard to which the data conforms
+     * @return the name */
     public IMCDFStandardName getStandardName() { return standard_name; }
+    /** get the version of the standard to which the data conforms
+     * @return the version */
     public String getStandardVersion() { return standard_version; }
+    /** get the description of which parts of the standard the data conforms to
+     * (if it does not fully conform)
+     * @return the list of partial standards confirmation */
     public String getPartialStandDesc() { return partial_stand_desc; }
+    /** get the source of the data
+     * @return the source */
     public String getSource() { return source; }
+    /** get the terms under which users can use the data
+     * @return the terms of use */
     public String getTermsOfUse() { return terms_of_use; }
+    /** get any unique (persistent) ID for the data
+     * @return the ID */
     public String getUniqueIdentifier() { return unique_identifier; }
+    /** get any parent persistent IDs for the data
+     * @return the IDs */
     public String [] getParentIdentifiers() { return parent_identifiers; }
+    /** get any URLs relating to the data
+     * @return the URLs */
     public URL [] getReferenceLinks() { return reference_links; }
 
+    /** get the number of geomagnetic elements recorded
+     * @return the number of elements */
     public int getNElements () { return elements.length; }
+    /** get a geomagnetic element
+     * @param index 0..N-1
+     * @return the geomagnetic element */
     public ImagCDFVariable getElement (int index) { return elements [index]; }
-    
-    /** find the time stamps associated with a geomagnetic element or a temperature variable */
+
+    /** find the time stamps associated with a geomagnetic element or a temperature variable
+     * @param var the variable
+     * @return the time series or null */
     public ImagCDFVariableTS findTimeStamps (ImagCDFVariable var) 
     {
         for (ImagCDFVariableTS ts : time_stamps)
@@ -556,14 +230,16 @@ implements IMCDFWriteProgressListener
         return null;
     }
     
-    /** find timestamps for vector geomagnetic elements */
+    /** find timestamps for vector geomagnetic elements
+     * @return the time series
+     * @throws IMCDFException  if the CDF variable can't be found */
     public ImagCDFVariableTS findVectorTimeStamps ()
-    throws CDFException
+    throws IMCDFException
     {
         int indices [] = findVectorElements();
-        if (indices == null) throw new CDFException ("Can't find Geomagnetic vector data");
+        if (indices == null) throw new IMCDFException ("Can't find Geomagnetic vector data");
         ImagCDFVariableTS ts = findTimeStamps(elements[indices[0]]);
-        if (ts == null) throw new CDFException ("Can't find Geomagnetic vector data time stamps");
+        if (ts == null) throw new IMCDFException ("Can't find Geomagnetic vector data time stamps");
         return ts;
     }
     
@@ -624,92 +300,52 @@ implements IMCDFWriteProgressListener
             codes += elements [scalar_index].getElementRecorded();
         return codes;
     }
-    
+
+    /** get the number of temperature variables recorded in the data
+     * @return the number of temperature variables */
     public int getNTemperatures () { return temperatures.length; }
+    /** get a temperature variable
+     * @param index 0..N-1
+     * @return the temperature variable */
     public ImagCDFVariable getTemperature (int index) { return temperatures [index]; }
-    
-    /** generate an IMAG CDF filename 
-     * @param station_code the IAGA station code
-     * @param sample_period the sample period of the data
-     * @param start_date the start date for the data
-     * @param pub_level the publication level
-     * @param force_lower_case set true to force the filename to lower case
-     *        (as demanded by the IAGA 2002 format description)
-     * @return the file OR null if there is an error */
-    public static String makeFilename (String station_code, 
-                                       FilenameSamplePeriod sample_period, Date start_date,
-                                       IMCDFPublicationLevel pub_level)
+
+    /** check the metadata in this CDF and create an error list if there is a fault
+     * @param accumulated_errors a list of error messages to add to */
+    protected void checkMetadata (List<String> accumulated_errors)
     {
-        ImagCDFFilename.Interval cdf_interval;
-        switch (sample_period)
-        {
-            case ANNUAL: cdf_interval = ImagCDFFilename.Interval.ANNUAL; break;
-            case MONTHLY: cdf_interval = ImagCDFFilename.Interval.MONTHLY; break;
-            case DAILY: cdf_interval = ImagCDFFilename.Interval.DAILY; break;
-            case HOURLY: cdf_interval = ImagCDFFilename.Interval.HOURLY; break;
-            case MINUTE: cdf_interval = ImagCDFFilename.Interval.MINUTE; break;
-            case SECOND: cdf_interval = ImagCDFFilename.Interval.SECOND; break;
-            default: cdf_interval = ImagCDFFilename.Interval.UNKNOWN; break;
+        if (title != null && ! title.equalsIgnoreCase ("Geomagnetic time series data")) 
+            accumulated_errors.add ("Format Error in 'Title'");
+        if (format_description != null && ! format_description.equalsIgnoreCase("INTERMAGNET CDF Format"))
+            accumulated_errors.add ("Format Error in 'FormatDescription'");
+        boolean found_version = false;
+        String version_list = "";
+        for (String version : FORMAT_VERSIONS_SUPPORTED) {
+            if (format_version != null && format_version.equalsIgnoreCase (version))
+                found_version  = true;
+            version_list += version + " ";
         }
-        return new ImagCDFFilename (station_code, start_date, pub_level, cdf_interval, ImagCDFFilename.Case.LOWER).getFilename ();
-    }
+        if (! found_version)
+            accumulated_errors.add ("Format Error, 'FormatVersion' must be one of " + version_list);
 
-    public static String getINTERMAGNETTermsOfUse ()
-    {
-        return "CONDITIONS OF USE FOR DATA PROVIDED THROUGH INTERMAGNET:\n" +
-               "The data made available through INTERMAGNET are provided for\n" +
-               "your use and are not for commercial use or sale or distribution\n" +
-               "to third parties without the written permission of the institute\n" +
-               "(http://www.intermagnet.org/Institutes_e.html) operating\n" +
-               "the observatory. Publications making use of the data\n" +
-               "should include an acknowledgment statement of the form given below.\n" +
-               "A citation reference should be sent to the INTERMAGNET Secretary\n" +
-               "(secretary@intermagnet.org) for inclusion in a publications list\n" +
-               "on the INTERMAGNET website.\n" +
-               "\n" +
-               "     ACKNOWLEDGEMENT OF DATA FROM OBSERVATORIES\n" +
-               "     PARTICIPATING IN INTERMAGNET\n" +
-               "We offer two acknowledgement templates. The first is for cases\n" +
-               "where data from many observatories have been used and it is not\n" + 
-               "practical to list them all, or each of their operating institutes.\n" + 
-               "The second is for cases where research results have been produced\n" + 
-               "using a smaller set of observatories.\n" +
-               "\n" +
-               "     Suggested Acknowledgement Text (template 1)\n" +
-               "The results presented in this paper rely on data collected\n" + 
-               "at magnetic observatories. We thank the national institutes that\n" + 
-               "support them and INTERMAGNET for promoting high standards of\n" + 
-               "magnetic observatory practice (www.intermagnet.org).\n" +
-               "\n" +
-               "     Suggested Acknowledgement Text (template 2)\n" +
-               "The results presented in this paper rely on the data\n" + 
-               "collected at <observatory name>. We thank <institute name>,\n" + 
-               "for supporting its operation and INTERMAGNET for promoting high\n" + 
-               "standards of magnetic observatory practice (www.intermagnet.org).\n";
-    }
-    
-    private void checkMetadata ()
-    throws CDFException
-    {
-        if (! title.equalsIgnoreCase             ("Geomagnetic time series data")) throw new CDFException ("Format Error");
-        if (! format_description.equalsIgnoreCase("INTERMAGNET CDF Format"))       throw new CDFException ("Format Error");
-        if (! format_version.equalsIgnoreCase    (FORMAT_VERSION_SUPPORTED))       throw new CDFException ("Format Error");
-
-        switch (standard_level.getStandardLevel())
+        if (standard_level != null)
         {
-            case FULL:
-                if (standard_name == null) throw new CDFException ("Missing StandardName attribute");
-                break;
-            case PARTIAL:
-                if (standard_name == null) throw new CDFException ("Missing StandardName attribute");
-                if (partial_stand_desc == null) throw new CDFException ("Missing PartialStandDesc attribute");
-                break;
+            switch (standard_level.getStandardLevel())
+            {
+                case FULL:
+                    if (standard_name == null) accumulated_errors.add ("Missing StandardName attribute");
+                    break;
+                case PARTIAL:
+                    if (standard_name == null) accumulated_errors.add ("Missing StandardName attribute");
+                    if (partial_stand_desc == null) accumulated_errors.add ("Missing PartialStandDesc attribute");
+                    break;
+            }
         }
         
         if (parent_identifiers == null) parent_identifiers = new String [0];
         if (reference_links == null) reference_links = new URL [0];
         
-        // check time stamps against variables
+        // check data variables have corresponding time stamps variables and that the
+        // time stamp array for a data variable has the same length as its data variable
         ImagCDFVariable vars [] = new ImagCDFVariable[elements.length + temperatures.length];
         System.arraycopy(elements, 0, vars, 0, elements.length);
         System.arraycopy(temperatures, 0, vars, elements.length, temperatures.length);
@@ -718,15 +354,25 @@ implements IMCDFWriteProgressListener
             boolean found = false;
             for (int count2=0; count2<time_stamps.length; count2++)
             {
-                if (vars[count].getDepend0().equals(time_stamps[count2].getVarName()))
+                if (vars[count] != null &&
+                    vars[count].getDepend0() != null &&
+                    vars[count].getDepend0().equals(time_stamps[count2].getVarName())) {
                     found = true;
+                    if (time_stamps[count2] != null &&
+                        time_stamps[count2].time_stamps != null &&
+                        vars[count].getDataLength() != time_stamps[count2].getNSamples())
+                        accumulated_errors.add ("Time stamp variable '" + time_stamps[count2].var_name + 
+                                                "' and data variable '" + vars[count].var_name + "' have different lengths");
+                }
             }
             if (! found)
-                throw new CDFException ("Missing time stamp data for element " + vars[count].getElementRecorded());
+                accumulated_errors.add ("Missing time stamp data for element " + vars[count].getElementRecorded());
         }
     }
-
-    // used to receive progress reports from ImagCDFVariable objects when they are writing data
+    
+    /** used to receive progress reports from ImagCDFVariable objects when they are writing data
+     * @param percent_complete the completeness of the write operation as a percentage
+     * @return whether the write operation should continue */
     @Override
     public boolean percentComplete(int percent_complete) 
     {

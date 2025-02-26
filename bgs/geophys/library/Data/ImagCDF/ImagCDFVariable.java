@@ -1,149 +1,65 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package bgs.geophys.library.Data.ImagCDF;
 
-import gsfc.nssdc.cdf.CDFException;
-import gsfc.nssdc.cdf.Variable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * A class that holds an ImagCDF variable along with it's metadata
- * 
- * THE IMCDF ROUTINES SHOULD NOT HAVE DEPENDENCIES ON OTHER LIBRARY ROUTINES -
- * IT MUST BE POSSIBLE TO DISTRIBUTE THE IMCDF SOURCE CODE
- * 
- * @author smf
- */
-public class ImagCDFVariable 
+/** the base class for ImagCDFVariable implementations */
+public abstract class ImagCDFVariable
 {
-    
-    // a list of listeners who will recieve "percent complete" notification during writing of data
-    private List<IMCDFWriteProgressListener> write_progress_listeners;
-    
-    // private member data - the type of data that this object holds
-    private IMCDFVariableType variable_type;
-    
-    // private member data - the CDF variable attributes
-    private String field_nam;
-    private double valid_min;
-    private double valid_max;
-    private String units;
-    private double fill_val;
-    private String elem_rec;
-    private String depend_0;
-    
-    // private member data - the data array
-    private double data [];
-    private int data_offset;
-    private int data_length;
-    
-    /** create a ImagCDF variable from the contents of a CDF file
-     * @param cdf the open CDF file encapsulated in an ImagCDFLowLevel object
-     * @param variable_type the type of data this object should look for in the CDF file
-     * @param suffix the suffix for the element name (numbers starting at '1' for temperature elements,
-     *               geomagnetic element codes for geomagnetic elements)
-     * @throws CDFException if there is a problem reading the data */
-    public ImagCDFVariable (ImagCDFLowLevel cdf, IMCDFVariableType variable_type, String suffix)
-    throws CDFException
-    {
-        Variable var;
-
-        write_progress_listeners = new ArrayList<> ();
-        
-        this.variable_type = variable_type;
-        var = cdf.getVariable (variable_type.getCDFFileVariableName(suffix));
-        
-        field_nam =                             cdf.getVariableAttributeString("FIELDNAM",  var);
-        valid_min =                             cdf.getVariableAttributeDouble("VALIDMIN",  var);
-        valid_max =                             cdf.getVariableAttributeDouble("VALIDMAX",  var);
-        units =                                 cdf.getVariableAttributeString("UNITS",     var);
-        fill_val =                              cdf.getVariableAttributeDouble("FILLVAL",   var);
-        depend_0 =                              cdf.getVariableAttributeString("DEPEND_0",  var);
-        
-        elem_rec = suffix;
-        
-        data = ImagCDFLowLevel.getDataArray (var);
-        data_offset = 0;
-        data_length = data.length;
-
-        checkMetadata ();
-    }
-
-    /** create an ImagCDFVariable from data and metadata for subsequent writing to a file
-     * @param variable_type the type of variable - geomagnetic element or temperature
-     * @param field_nam set the "Geomagnetic Field Element " and a number or
-     *                  "Temperature" and a number
-     * @param valid_min the smallest possible value that the data can take
-     * @param valid_max the largest possible value that the data can take
-     * @param units name of the units that the data is in
-     * @param fill_val the value that, when present in the data, shows that the data point was not recorded
-     * @param depend_0 the name of the time stamp variable in the CDF file for this data variable
-     * @param elem_rec for geomagnetic data the element that this data represents.
-     *                 for temperature data the name of the location where temperature was recorded
-     * @param data the data as an array
-     * @throws CDFException if the elem_rec or samp_per are invalid */
-    public ImagCDFVariable (IMCDFVariableType variable_type, String field_nam,
-                            double valid_min, double valid_max,
-                            String units, double fill_val, String depend_0,
-                            String elem_rec, double data [])
-    throws CDFException
-    {
-        this (variable_type, field_nam, valid_min, valid_max, units, fill_val, depend_0, elem_rec, data, 0, data.length);
-    }
-    
-    /** create an ImagCDFVariable from data and metadata for subsequent writing to a file
-     * @param variable_type the type of variable - geomagnetic element or temperature
-     * @param field_nam set the "Geomagnetic Field Element " and a number or
-     *                  "Temperature" and a number
-     * @param valid_min the smallest possible value that the data can take
-     * @param valid_max the largest possible value that the data can take
-     * @param units name of the units that the data is in
-     * @param fill_val the value that, when present in the data, shows that the data point was not recorded
-     * @param depend_0 the name of the time stamp variable in the CDF file for this data variable
-     * @param elem_rec for geomagnetic data the element that this data represents.
-     *                 for temperature data the name of the location where temperature was recorded
-     * @param data the data as an array
-     * @param data_offset index into the data array to start writing from
-     * @param data_length number of samples of data to write
-     * @throws CDFException if the elem_rec or samp_per are invalid */
-    public ImagCDFVariable (IMCDFVariableType variable_type, String field_nam,
-                            double valid_min, double valid_max,
-                            String units, double fill_val, String depend_0,
-                            String elem_rec, double data [], int data_offset, int data_length)
-    throws CDFException
+    /** only allow creation by subclasses */
+    protected ImagCDFVariable ()
     {
         write_progress_listeners = new ArrayList<> ();
-        
-        this.variable_type = variable_type;
-        this.field_nam = field_nam;
-        this.valid_min = valid_min;
-        this.valid_max = valid_max;
-        this.units = units;
-        this.fill_val = fill_val;
-        this.depend_0 = depend_0;
-        this.elem_rec = elem_rec;
-        this.data = data;
-        this.data_offset = data_offset;
-        this.data_length = data_length;
-        
-        if (data_offset + data_length > data.length) throw new IllegalArgumentException ("Data length + offset exceed length of data array");
-        
-        checkMetadata ();
     }
+    /** a list of listeners who will recieve "percent complete" notification during writing of data */
+    protected List<IMCDFWriteProgressListener> write_progress_listeners;
+    
+    /** private member data - the type of data that this object holds */
+    protected IMCDFVariableType variable_type;
+    
+        /** the CDF variable name **/
+    protected String var_name;
+    /** CDF variable attributes: the free text name of this variable */
+    protected String field_nam;
+    /** CDF variable attributes: valid minimum */
+    protected Double valid_min;
+    /** CDF variable attributes: valid maximum */
+    protected Double valid_max;
+    /** CDF variable attributes: units the data is recorded in */
+    protected String units;
+    /** CDF variable attributes: value indicating missing data */
+    protected Double fill_val;
+    /** CDF variable attributes: the element that was recorded */
+    protected String elem_rec;
+    /** the name of the related time stamp array */
+    protected String depend_0;
+    
+    /** the data array */
+    protected double data [];
+    /** index to the start of the data in the array */
+    protected int data_offset;
+    /** the length of the data */
+    protected int data_length;
 
+    /** add a listener for progress updates
+     * @param listener the listener */
     public void addWriteProgressListener (IMCDFWriteProgressListener listener)
     {
         write_progress_listeners.add (listener);
     }
+    /** remove a listener for progress updates
+     * @param listener the listener */
     public void removeWriteProgressListener (IMCDFWriteProgressListener listener)
     {
         write_progress_listeners.remove(listener);
     }
-    private boolean callWriteProgressListeners (int var_write_count, int n_vars)
+    /** call the progress listeners
+     * @param var_write_count the number of CDF variables written
+     * @param n_vars the total number of CDF variables
+     * @return true to continue writing, false to stop */
+    protected boolean callWriteProgressListeners (int var_write_count, int n_vars)
     {
         Iterator<IMCDFWriteProgressListener> i;
         int percent;
@@ -156,59 +72,36 @@ public class ImagCDFVariable
         return continue_writing;
     }
 
-    /** write this data to a CDF file
-     * @param cdf the CDF file to write into
-     * @param suffix the suffix for the element name (numbers starting at '1' for temperature elements,
-     *               geomagnetic element codes for geomagnetic elements)
-     * @return true if the write completed, false if it was interrupted 
-     * @throws CDFException if there is an error */
-    public boolean write (ImagCDFLowLevel cdf, String suffix)
-    throws CDFException
-    {
-        int count;
-        Variable var;
-        
-        var = cdf.createDataVariable (variable_type.getCDFFileVariableName(suffix), ImagCDFLowLevel.CDFVariableType.Double);
-
-        cdf.addVariableAttribute ("FIELDNAM",      var, field_nam);
-        cdf.addVariableAttribute ("VALIDMIN",      var, new Double (valid_min));
-        cdf.addVariableAttribute ("VALIDMAX",      var, new Double (valid_max));
-        cdf.addVariableAttribute ("UNITS",         var, units);
-        cdf.addVariableAttribute ("FILLVAL",       var, new Double (fill_val));
-        cdf.addVariableAttribute ("DEPEND_0",      var, depend_0);
-        cdf.addVariableAttribute ("DISPLAY_TYPE",  var, "time_series");
-        if (isScalarGeomagneticData() || isVectorGeomagneticData())
-            cdf.addVariableAttribute ("LABLAXIS",  var, suffix);
-        else
-            cdf.addVariableAttribute ("LABLAXIS",  var, "Temperature " + suffix);
-        
-        if (! callWriteProgressListeners(0, data_length)) return false;
-        cdf.addData (var, 0, data, data_offset, data_length);
-//        for (count=0; count<data_length; count++)
-//        {
-//            cdf.addData (var, count, data[count + data_offset]);
-//            // don't send progress every sample or we'll slow right down!
-//            if ((count % 500) == 0)
-//            {
-//                if (! callWriteProgressListeners(count, data_length)) 
-//                {
-//                    return false;
-//                }
-//            }
-//        }
-        if (! callWriteProgressListeners(data_length, data_length)) return false;
-        return true;
-    }
-    
+    /** get the name of the variable in the CDF file
+     * @return the variable name */
+    public String getVarName () { return var_name; }
+    /** get the type of variable
+     * @return the variable type */
     public IMCDFVariableType getVariableType () { return variable_type; }
+    /** get the name of this variable
+     * @return the name */
     public String getFieldName () { return field_nam; }
-    public double getValidMinimum () { return valid_min; }
-    public double getValidMaximum () { return valid_max; }
+    /** get the valid minimum value for this variable
+     * @return the valid minimum */
+    public Double getValidMinimum () { return valid_min; }
+    /** get the valid maximum value for this variable
+     * @return the valid maximum */
+    public Double getValidMaximum () { return valid_max; }
+    /** get the name of the units that this data is recorded in
+     * @return the unit name */
     public String getUnits () { return units; }
-    public double getFillValue () { return fill_val; }
+    /** get the value corresponding to a missing data sample
+     * @return the missing data value */
+    public Double getFillValue () { return fill_val; }
+    /** get the name of the variable used to hold time stamps for the data
+     * @return the variable name */
     public String getDepend0 () { return depend_0; }
+    /** get the list of geomagnetic elements recorded
+     * @return the orientation */
     public String getElementRecorded () { return elem_rec; }
     
+    /** get the data for this variable
+     * @return the data */
     public double [] getData () 
     {
         int count;
@@ -222,8 +115,12 @@ public class ImagCDFVariable
             data_subset [count] = data [count + data_offset];
         return data_subset;
     }
+    /** get the length of the data for this variable
+     * @return the length of data */
     public int getDataLength () { return data_length; }
 
+    /** return true if this variable is a geomagnetic vector data set
+     * @return true or false */
     public boolean isVectorGeomagneticData ()
     {
         if (variable_type.getCode() != IMCDFVariableType.VariableTypeCode.GeomagneticFieldElement)
@@ -244,6 +141,8 @@ public class ImagCDFVariable
         return false;
     }
     
+    /** return true if this variable is a geomagnetic scalar data set
+     * @return true or false */
     public boolean isScalarGeomagneticData ()
     {
         if (variable_type.getCode() != IMCDFVariableType.VariableTypeCode.GeomagneticFieldElement)
@@ -256,14 +155,15 @@ public class ImagCDFVariable
         }
         return false;
     }
-    
-    private void checkMetadata ()
-    throws CDFException
+
+    /** check the metadata for this variable is OK
+     * @param accumulated_errors a list of error messages to add to */
+    protected void checkMetadata (List<String> accumulated_errors)
     {
         if (variable_type.getCode() == IMCDFVariableType.VariableTypeCode.GeomagneticFieldElement)
         {
-            if (elem_rec.length() != 1 || "XYZHDEVIFSG".indexOf (elem_rec) < 0)
-                throw new CDFException ("Data array '" + field_nam + "' contains an invalid element code: " + elem_rec);
+            if ((elem_rec.length() != 1) || (! "XYZHDEVIFSG".contains (elem_rec)))
+                accumulated_errors.add ("Data array '" + field_nam + "' contains an invalid element code: " + elem_rec);
         }
     }
     
