@@ -5,12 +5,11 @@
  */
 package bgs.geophys.library.Data.ImagCDF;
 
-import bgs.geophys.library.Misc.DateUtils;
+import java.text.DateFormatSymbols;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.StringTokenizer;
 import java.util.TimeZone;
 
 /** 
@@ -19,6 +18,29 @@ import java.util.TimeZone;
 public class ImagCDFFilename 
 {
 
+    // some time constants
+    /** the number of milliseconds in a minute */
+    public static final long MILLISECONDS_PER_MINUTE = 60000l;
+    /** the number of milliseconds in an hour */
+    public static final long MILLISECONDS_PER_HOUR = 3600000l;
+    /** the number of milliseconds in a day */
+    public static final long MILLISECONDS_PER_DAY = 86400000l;
+    /** the number of seconds in a minute */
+    public static final int SECONDS_PER_MINUTE = 60;
+    /** the number of seconds in an hour */
+    public static final int SECONDS_PER_HOUR = 3600;
+    /** the number of seconds in a day */
+    public static final int SECONDS_PER_DAY = 86400;
+    /** the number of minutes in a day */
+    public static final int MINUTES_PER_DAY = 1440;
+    /** the number of minutes in an hour */
+    public static final int MINUTES_PER_HOUR = 60;
+    /** the number of hours in an day */
+    public static final int HOURS_PER_DAY = 24;
+
+    /** a timezone representing GMT */
+    public static TimeZone gmtTimeZone;
+  
     // Date formatting objects
     private static final SimpleDateFormat YYYY;
     private static final SimpleDateFormat YYYYMM;
@@ -28,20 +50,20 @@ public class ImagCDFFilename
     private static final SimpleDateFormat YYYYMMDD_HHMMSS;
     
     static {
-        TimeZone gmtTimeZone = TimeZone.getTimeZone("gmt");
+        gmtTimeZone = TimeZone.getTimeZone("gmt");
 
         YYYY = new SimpleDateFormat("yyyy");
-        DateUtils.fixSimpleDateFormat(YYYY);
+        fixSimpleDateFormat(YYYY);
         YYYYMM = new SimpleDateFormat("yyyyMM");
-        DateUtils.fixSimpleDateFormat(YYYYMM);
+        fixSimpleDateFormat(YYYYMM);
         YYYYMMDD = new SimpleDateFormat("yyyyMMdd");
-        DateUtils.fixSimpleDateFormat(YYYYMMDD);
+        fixSimpleDateFormat(YYYYMMDD);
         YYYYMMDD_HH = new SimpleDateFormat("yyyyMMdd_HH");
-        DateUtils.fixSimpleDateFormat(YYYYMMDD_HH);
+        fixSimpleDateFormat(YYYYMMDD_HH);
         YYYYMMDD_HHMM = new SimpleDateFormat("yyyyMMdd_HHmm");
-        DateUtils.fixSimpleDateFormat(YYYYMMDD_HHMM);
+        fixSimpleDateFormat(YYYYMMDD_HHMM);
         YYYYMMDD_HHMMSS = new SimpleDateFormat("yyyyMMdd_HHmmss");
-        DateUtils.fixSimpleDateFormat(YYYYMMDD_HHMMSS);
+        fixSimpleDateFormat(YYYYMMDD_HHMMSS);
     }
     
     private String filename;
@@ -111,7 +133,7 @@ public class ImagCDFFilename
         parseFilename(filename);
     }
     
-    /** Creates a new instance of Iaga2002Filename
+    /** Creates a new instance of ImagCDFFilename
      * 
      * @param imag_cdf the data to construct a filename for
      * @param characterCase upper or lower
@@ -122,7 +144,7 @@ public class ImagCDFFilename
             String obsy_code = imag_cdf.getIagaCode();
             ImagCDFVariableTS ts = imag_cdf.findVectorTimeStamps();
             Date dt = ts.getStartDate();
-            GregorianCalendar cal = new GregorianCalendar (DateUtils.gmtTimeZone);
+            GregorianCalendar cal = new GregorianCalendar (gmtTimeZone);
             cal.setTime (dt);
             IMCDFPublicationLevel pub_level = imag_cdf.getPublicationLevel();
             double samp_per = ts.getSamplePeriod(); 
@@ -136,35 +158,35 @@ public class ImagCDFFilename
             int samples_in_year = -1, samples_in_month = -1, samples_in_day = -1, samples_in_hour = -1, samples_in_minute = -1, samples_in_second = -1;
             switch ((int) samp_per) {
                 case 1:
-                    samples_in_year = DateUtils.daysInYear (cal.get (GregorianCalendar.YEAR)) * DateUtils.SECONDS_PER_DAY;
-                    samples_in_month = DateUtils.daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR)) * DateUtils.SECONDS_PER_DAY;
-                    samples_in_day = DateUtils.SECONDS_PER_DAY;
-                    samples_in_hour = DateUtils.SECONDS_PER_HOUR;
-                    samples_in_minute = DateUtils.SECONDS_PER_MINUTE;
+                    samples_in_year = daysInYear (cal.get (GregorianCalendar.YEAR)) * SECONDS_PER_DAY;
+                    samples_in_month = daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR)) * SECONDS_PER_DAY;
+                    samples_in_day = SECONDS_PER_DAY;
+                    samples_in_hour = SECONDS_PER_HOUR;
+                    samples_in_minute = SECONDS_PER_MINUTE;
                     samples_in_second = 1;
                     cadence = Interval.SECOND;
                     break;
                 case 60:
-                    samples_in_year = DateUtils.daysInYear (cal.get (GregorianCalendar.YEAR)) * DateUtils.MINUTES_PER_DAY;
-                    samples_in_month = DateUtils.daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR)) * DateUtils.MINUTES_PER_DAY;
-                    samples_in_day = DateUtils.MINUTES_PER_DAY;
-                    samples_in_hour = DateUtils.MINUTES_PER_HOUR;
+                    samples_in_year = daysInYear (cal.get (GregorianCalendar.YEAR)) * MINUTES_PER_DAY;
+                    samples_in_month = daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR)) * MINUTES_PER_DAY;
+                    samples_in_day = MINUTES_PER_DAY;
+                    samples_in_hour = MINUTES_PER_HOUR;
                     samples_in_minute = 1;
                     samples_in_second = -1;
                     cadence = Interval.MINUTE;
                     break;
                 case 3600:
-                    samples_in_year = DateUtils.daysInYear (cal.get (GregorianCalendar.YEAR)) * DateUtils.HOURS_PER_DAY;
-                    samples_in_month = DateUtils.daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR)) * DateUtils.HOURS_PER_DAY;
-                    samples_in_day = DateUtils.HOURS_PER_DAY;
+                    samples_in_year = daysInYear (cal.get (GregorianCalendar.YEAR)) * HOURS_PER_DAY;
+                    samples_in_month = daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR)) * HOURS_PER_DAY;
+                    samples_in_day = HOURS_PER_DAY;
                     samples_in_hour = 1;
                     samples_in_minute = -1;
                     samples_in_second = -1;
                     cadence = Interval.HOURLY;
                     break;
                 case 86400:
-                    samples_in_year = DateUtils.daysInYear (cal.get (GregorianCalendar.YEAR));
-                    samples_in_month = DateUtils.daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR));
+                    samples_in_year = daysInYear (cal.get (GregorianCalendar.YEAR));
+                    samples_in_month = daysInMonth (cal.get (GregorianCalendar.MONTH), cal.get (GregorianCalendar.YEAR));
                     samples_in_day = 1;
                     samples_in_hour = -1;
                     samples_in_minute = -1;
@@ -371,6 +393,63 @@ public class ImagCDFFilename
         if ("PT1S".equalsIgnoreCase(cadence_str)) return Interval.SECOND;
         return Interval.UNKNOWN;
     }
+
+    /** from Java 16 (or thereabouts) the short month name for September is
+     * "Sept" not "Sep". This breaks a lot of lib_bgs code, particularly
+     * filenames. This method takes a SimpleDateFormat and fixes its
+     * short month names.
+     * 
+     * The code also sets the timezone for the SimpleDataFormat object to
+     * "GMT".
+     * 
+     * @param format the SimpleDateFormat object to fix */
+    private static void fixSimpleDateFormat (SimpleDateFormat format)
+    {
+        DateFormatSymbols dfs = format.getDateFormatSymbols();
+        dfs.setShortMonths(new String [] {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"});
+        format.setDateFormatSymbols(dfs);
     
+        format.setTimeZone(gmtTimeZone);
+    }
+
+    /** is this a leap year
+     * @param year the year to test
+     * @return true for a leap year */
+    private static boolean isLeapYear (int year)
+    {
+        if ((year % 4) != 0) return false;
+        if ((year % 100 == 0) && (year % 400 != 0)) return false;
+        return true;
+    }
+  
+    /**********************************************
+     * daysYear - find the number of days in the
+     * given year
+     *
+     * @param year the year to use
+     * @return - the number of days in the year
+     **********************************************/
+    private static int daysInYear (int year)
+    {
+        if (isLeapYear(year)) return 366;
+        return 365;
+    }
+
+    /**********************************************
+     * daysInMonth - find the number of days in the
+     * given month
+     *
+     * @param month the month to use (0..11)
+     * @param year the year to use
+     * @return - the number of days in the month
+     **********************************************/
+    private static int daysInMonth (int month, int year)
+    {
+        int days[] = {31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    
+        if (isLeapYear(year)) days [1] = 29;
+        else days[1] = 28;
+        return days [month];
+    }
 }
 

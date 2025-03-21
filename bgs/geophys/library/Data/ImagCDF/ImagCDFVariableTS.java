@@ -2,7 +2,6 @@
 package bgs.geophys.library.Data.ImagCDF;
 
 import bgs.geophys.library.Data.ImagCDF.Impl_PureJava.ImagCDFLowLevelReader_PureJava;
-import bgs.geophys.library.Misc.Utils;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -94,7 +93,7 @@ public abstract class ImagCDFVariableTS
                 // leap seconds could occasionally cause this difference to be one second more than expected
                 test_diff = (time_stamps [count] - time_stamps [count -1]) - 1000000000;
             if (test_diff != diff) 
-                throw new IMCDFException ("Time difference not constant (1st = " + diff + "mS, " + Utils.make_ordinal_number(count) + " = " + test_diff + "mS)");
+                throw new IMCDFException ("Time difference not constant (1st = " + diff + "mS, " + make_ordinal_number(count) + " = " + test_diff + "mS)");
         }
         sample_period = (double) diff / 1000000000.0;
         
@@ -112,4 +111,35 @@ public abstract class ImagCDFVariableTS
      * @return the number of time stamps */
     public int getNSamples () { return time_stamps.length; }
             
+    /*****************************************************************************
+     * make_ordinal_number
+     *
+     * Description: convert an ordinal number to its string equivalent
+     *
+     * @param number - the value to convert
+     * @return - a static string representing the ordinal value
+     ****************************************************************************/
+    private static String make_ordinal_number (int number)
+    {
+        int unit, tens;
+        String string;
+
+        /* find the units and tens values from the number */
+        unit = number % 10;
+        tens = (number % 100) / 10;
+
+        /* fake the unit for the teens, which are always 'th' */
+        if (tens == 1) unit = 9;
+
+        /* calculate the string */
+        switch (unit)
+        {
+            case 1:  string = number + "st"; break;
+            case 2:  string = number + "nd"; break;
+            case 3:  string = number + "rd"; break;
+            default: string = number + "th"; break;
+        }
+
+        return string;
+    }
 }
