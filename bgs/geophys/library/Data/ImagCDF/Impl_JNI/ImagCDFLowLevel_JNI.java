@@ -6,7 +6,7 @@ package bgs.geophys.library.Data.ImagCDF.Impl_JNI;
 
 import bgs.geophys.library.Data.ImagCDF.IMCDFException;
 import bgs.geophys.library.Data.ImagCDF.IMCDFPrintEnum;
-import bgs.geophys.library.Misc.DateUtils;
+import bgs.geophys.library.Data.ImagCDF.ImagCDFFactory;
 import gsfc.nssdc.cdf.*;
 import gsfc.nssdc.cdf.util.CDFTT2000;
 import java.io.File;
@@ -14,8 +14,6 @@ import java.text.DateFormatSymbols;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -73,7 +71,7 @@ public class ImagCDFLowLevel_JNI
             english_date_format_symbols = new DateFormatSymbols ();
             
         DATA_DATE_FORMAT = new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss.SSS zzz", english_date_format_symbols);
-        DateUtils.fixSimpleDateFormat(DATA_DATE_FORMAT);
+        ImagCDFFactory.fixSimpleDateFormat(DATA_DATE_FORMAT);
     }
     
     
@@ -560,7 +558,7 @@ public class ImagCDFLowLevel_JNI
             {
                 String string = ((String) entry.getData()).replace('T', ' ').replaceAll("Z", "");
                 SimpleDateFormat formatter = new SimpleDateFormat ("YYYY-mm-dd hh:mm:ss");
-                DateUtils.fixSimpleDateFormat(formatter);
+                ImagCDFFactory.fixSimpleDateFormat(formatter);
                 try { return formatter.parse (string); }
                 catch (ParseException e) {}
             }

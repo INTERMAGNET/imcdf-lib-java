@@ -14,7 +14,6 @@ import bgs.geophys.library.Data.ImagCDF.Impl_PureJava.ImagCDFInfo_PureJava;
 import bgs.geophys.library.Data.ImagCDF.Impl_PureJava.ImagCDFVariableTS_PureJava;
 import bgs.geophys.library.Data.ImagCDF.Impl_PureJava.ImagCDFVariable_PureJava;
 import bgs.geophys.library.Data.ImagCDF.Impl_PureJava.ImagCDF_PureJava;
-import bgs.geophys.library.Misc.DateUtils;
 import gov.nasa.gsfc.spdf.cdfj.CDR;
 import gov.nasa.gsfc.spdf.cdfj.TimeUtil;
 import gsfc.nssdc.cdf.CDF;
@@ -22,10 +21,13 @@ import gsfc.nssdc.cdf.CDFException;
 import gsfc.nssdc.cdf.util.CDFTT2000;
 import java.io.File;
 import java.net.URL;
+import java.text.DateFormatSymbols;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.TimeZone;
 
 /**
  * A factory to create ImagCDF data, either creating ImagCDF files from data
@@ -55,6 +57,29 @@ import java.util.List;
  */
 public class ImagCDFFactory {
     
+    // some time constants
+    /** the number of milliseconds in a minute */
+    public static final long MILLISECONDS_PER_MINUTE = 60000l;
+    /** the number of milliseconds in an hour */
+    public static final long MILLISECONDS_PER_HOUR = 3600000l;
+    /** the number of milliseconds in a day */
+    public static final long MILLISECONDS_PER_DAY = 86400000l;
+    /** the number of seconds in a minute */
+    public static final int SECONDS_PER_MINUTE = 60;
+    /** the number of seconds in an hour */
+    public static final int SECONDS_PER_HOUR = 3600;
+    /** the number of seconds in a day */
+    public static final int SECONDS_PER_DAY = 86400;
+    /** the number of minutes in a day */
+    public static final int MINUTES_PER_DAY = 1440;
+    /** the number of minutes in an hour */
+    public static final int MINUTES_PER_HOUR = 60;
+    /** the number of hours in an day */
+    public static final int HOURS_PER_DAY = 24;
+
+    /** a timezone representing GMT */
+    public static TimeZone gmtTimeZone;
+  
     /** an enumeration that lists the libraries that clients can use */
     public enum ImagCDFLibraryType {
         /** the Java Native Interface library - this requires the CDF software to be installed */
@@ -120,6 +145,8 @@ public class ImagCDFFactory {
     
     static
     {
+        gmtTimeZone = TimeZone.getTimeZone("gmt");
+        
         /* start with no errors or warnings during initialisation */
         List<String> init_errors = new ArrayList<> ();
         List<String> init_warnings = new ArrayList<> ();
@@ -166,7 +193,7 @@ public class ImagCDFFactory {
              * up to the end of 2016. If leap seconds are inserted after this date, this code will need 
              * updating (change the value that "expected_last_leap_sec" is set to - remember that
              * the month field is 0 based (January = 0) */
-            GregorianCalendar last_leap_sec = new GregorianCalendar (DateUtils.gmtTimeZone);
+            GregorianCalendar last_leap_sec = new GregorianCalendar (gmtTimeZone);
             switch (library_type) {
                 case JNI:
                     long date_fields [] = CDFTT2000.CDFgetLastDateinLeapSecondsTable();
@@ -177,7 +204,7 @@ public class ImagCDFFactory {
                     last_leap_sec.setTime(TimeUtil.CDFgetLastDateinLeapSecondsTable ());
                     break;
             }
-            GregorianCalendar expected_last_leap_sec = new GregorianCalendar (DateUtils.gmtTimeZone);
+            GregorianCalendar expected_last_leap_sec = new GregorianCalendar (gmtTimeZone);
             expected_last_leap_sec.set (2016, 11, 31, 0, 0, 0);
             expected_last_leap_sec.set (GregorianCalendar.MILLISECOND, 0);
             if (last_leap_sec.getTimeInMillis() < expected_last_leap_sec.getTimeInMillis()) {
@@ -509,6 +536,59 @@ public class ImagCDFFactory {
         return "Unknown";
     }
 
+    /** from Java 16 (or thereabouts) the short month name for September is
+     * "Sept" not "Sep". This breaks a lot of lib_bgs code, particularly
+     * filenames. This method takes a SimpleDateFormat and fixes its
+     * short month names.
+     * 
+     * The code also sets the timezone for the SimpleDataFormat object to
+     * "GMT".
+     * 
+     * @param format the SimpleDateFormat object to fix */
+    public static void fixSimpleDateFormat (SimpleDateFormat format)
+    {
+        DateFormatSymbols dfs = format.getDateFormatSymbols();
+        dfs.setShortMonths(new String [] {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"});
+        format.setDateFormatSymbols(dfs);
+    
+        format.setTimeZone(gmtTimeZone);
+    }
+
+    /** is this a leap year
+     * @param year the year to test
+     * @return true for a leap year */
+    public static boolean isLeapYear (int year)
+    {
+        if ((year % 4) != 0) return false;
+        if ((year % 100 == 0) && (year % 400 != 0)) return false;
+        return true;
+    }
+  
+    /** daysYear - find the number of days in the
+     * given year
+     *
+     * @param year the year to use
+     * @return - the number of days in the year */
+    public static int daysInYear (int year)
+    {
+        if (isLeapYear(year)) return 366;
+        return 365;
+    }
+
+    /** daysInMonth - find the number of days in the given month
+     *
+     * @param month the month to use (0..11)
+     * @param year the year to use
+     * @return - the number of days in the month */
+    public static int daysInMonth (int month, int year)
+    {
+        int days[] = {31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    
+        if (isLeapYear(year)) days [1] = 29;
+        else days[1] = 28;
+        return days [month];
+    }
+    
     private static void checkInitErrors ()
     throws IMCDFException {
         // if there were any initialisation errors (rather than warnings) then we can't continue

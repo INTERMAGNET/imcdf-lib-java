@@ -5,7 +5,7 @@
 package bgs.geophys.library.Data.ImagCDF.Impl_PureJava;
 
 import bgs.geophys.library.Data.ImagCDF.IMCDFException;
-import bgs.geophys.library.Misc.DateUtils;
+import bgs.geophys.library.Data.ImagCDF.ImagCDFFactory;
 import gov.nasa.gsfc.spdf.cdfj.AttributeEntry;
 import gov.nasa.gsfc.spdf.cdfj.CDFReader;
 import gov.nasa.gsfc.spdf.cdfj.CDFException;
@@ -199,7 +199,7 @@ public class ImagCDFLowLevelReader_PureJava
             {
                 String string = ((String) entry.getValue()).replace('T', ' ').replaceAll("Z", "");
                 SimpleDateFormat formatter = new SimpleDateFormat ("YYYY-mm-dd hh:mm:ss");
-                DateUtils.fixSimpleDateFormat(formatter);
+                ImagCDFFactory.fixSimpleDateFormat(formatter);
                 try 
                 { 
                     return formatter.parse (string); 
